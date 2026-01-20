@@ -68,6 +68,7 @@ ghc-options:
 library:
   source-dirs: src/wrench
   dependencies:
+    - directory
     - random
 
 executables:
@@ -79,6 +80,7 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
+      - directory
       - random
       - wrench
 

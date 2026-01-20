@@ -439,11 +439,16 @@ const highlightYamlLine = line => {
 const highlightBlock = (elementId, lang, isa) => {
   const el = document.getElementById(elementId)
   if (!el) return
-  const lines = el.querySelectorAll('.code-line')
+  const lines = el.querySelectorAll('.code-line-text, .code-line')
   lines.forEach(line => {
     const text = unescapeHtml(line.textContent ?? '')
-    line.innerHTML =
+    const html =
       lang === 'yaml' ? highlightYamlLine(text) : highlightAsmLine(text, isa)
+    if (line.classList.contains('code-line-text')) {
+      line.innerHTML = html
+    } else {
+      line.innerHTML = html
+    }
   })
 }
 

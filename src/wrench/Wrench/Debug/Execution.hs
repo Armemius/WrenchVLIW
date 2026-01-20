@@ -63,6 +63,7 @@ data IoChange = IoChange
 data StepEntry = StepEntry
     { seIndex :: !Int
     , sePc :: !Int
+    , seNextPc :: !(Maybe Int)
     , seLabel :: !(Maybe Text)
     , seInstruction :: !(Maybe Text)
     , seSource :: !(Maybe SourceInfo)
@@ -145,6 +146,7 @@ buildExecutionLog labels sourceMap traces = do
                     , seLabel = pcLabels !? pc
                     , seInstruction = instructionText
                     , seSource = sourceMap !? pc
+                    , seNextPc = Just (esPc nextSnap)
                     , seRegisters = regChanges
                     , seStacks = stackChanges
                     , seMemory = memChanges

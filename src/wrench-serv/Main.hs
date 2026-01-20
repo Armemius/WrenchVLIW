@@ -6,6 +6,7 @@ import Crypto.Hash.SHA1 qualified as SHA1
 import Data.Aeson (decodeStrict, encode)
 import Data.ByteString qualified as B
 import Data.ByteString.Lazy qualified as BL
+import Data.Char (isAlphaNum)
 import Data.Text (isSuffixOf, replace)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime, nominalDiffTimeToSeconds)
@@ -56,6 +57,7 @@ type API =
     "submit-form" :> GetForm
         :<|> "submit" :> SubmitForm
         :<|> "report" :> GetReport
+        :<|> "debug" :> GetDebug
         :<|> "submissions" :> Get '[HTML] (Html ())
         :<|> "examples" :> Get '[HTML] (Html ())
         :<|> "assets" :> Raw
@@ -66,6 +68,7 @@ server conf =
     getForm conf
         :<|> submitForm conf
         :<|> getReport conf
+        :<|> getDebug conf
         :<|> getSubmissions
         :<|> getExamples
         :<|> serveDirectoryWebApp "static/assets"
@@ -119,7 +122,7 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         asmFile = dir <> "/source.s"
         configFile = dir <> "/config.yaml"
 
-    let simulationTask = SimulationTask{stIsa = isa, stAsmFn = asmFile, stConfFn = configFile, stGuid = guid}
+    let simulationTask = SimulationTask{stIsa = isa, stAsmFn = asmFile, stConfFn = configFile, stGuid = guid, stExecLogPath = Nothing}
 
     liftIO $ spitDump conf simulationTask
 
@@ -135,7 +138,9 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         Just variant' -> do
             yamlFiles <- liftIO $ listTextCases (cVariantsPath </> toString variant')
             liftIO $ forM yamlFiles $ \yamlFile -> do
-                doSimulation conf simulationTask{stConfFn = cVariantsPath </> toString variant' </> yamlFile}
+                let confPath = cVariantsPath </> toString variant' </> yamlFile
+                    execLogPath = execLogTestCaseFn cStoragePath guid confPath
+                doSimulation conf simulationTask{stConfFn = confPath, stExecLogPath = Just execLogPath}
 
     liftIO $ writeFile (dir <> "/test_cases_status.log") ""
     forM_ varChecks $ \(SimulationResult{srTestCaseStatus}) -> do
@@ -157,22 +162,23 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         liftIO $ appendFileText testCaseStatsFn' $ header <> fromMaybe "stats not available\n" srStatsCase <> "\n"
 
     -- Persist structured test case data for the report view.
-    let testCaseEntries =
-            map
-                ( \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats = srStatsCase, srTestCase, srExitCode} ->
-                    TestCaseEntry
-                        { tceName = toText srConfigPath
-                        , tceStatus = srTestCaseStatus
-                        , tceSuccess = srSuccess
-                        , tceStats = srStatsCase
-                        , tceLog = srTestCase
-                        , tceExitCode = case srExitCode of
-                            ExitSuccess -> 0
-                            ExitFailure n -> n
-                        }
-                )
-                varChecks
-        testCaseEntriesPath = testCaseEntriesFn cStoragePath guid
+    testCaseEntries <-
+        liftIO $
+            forM varChecks $ \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats = srStatsCase, srTestCase, srExitCode} ->
+                let logName = execLogNameFromConf (toText srConfigPath)
+                 in return
+                        TestCaseEntry
+                            { tceName = toText srConfigPath
+                            , tceStatus = srTestCaseStatus
+                            , tceSuccess = srSuccess
+                            , tceStats = srStatsCase
+                            , tceLog = srTestCase
+                            , tceExitCode = case srExitCode of
+                                ExitSuccess -> 0
+                                ExitFailure n -> n
+                            , tceDebugLog = Just logName
+                            }
+    let testCaseEntriesPath = testCaseEntriesFn cStoragePath guid
     liftIO $ writeFileBS testCaseEntriesPath (BL.toStrict $ encode testCaseEntries)
 
     endAt <- liftIO now
@@ -209,6 +215,12 @@ type GetReport =
         :> Capture "guid" UUID
         :> Get '[HTML] (Headers '[Header "Set-Cookie" Text] (Html ()))
 
+type GetDebug =
+    Header "Cookie" Text
+        :> Capture "guid" UUID
+        :> QueryParam "log" Text
+        :> Get '[HTML] (Headers '[Header "Set-Cookie" Text] (Html ()))
+
 getReport :: Config -> Maybe Text -> UUID -> Handler (Headers '[Header "Set-Cookie" Text] (Html ()))
 getReport conf@Config{cStoragePath} cookie guid = do
     let dir = cStoragePath <> "/" <> show guid
@@ -222,6 +234,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
     status <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/status.log"))
     isaContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/isa.txt"))
     stats <- liftIO (fromMaybe "" <$> maybeReadFile (statsFn cStoragePath guid))
+    logExists <- liftIO $ doesFileExist (execLogFn cStoragePath guid)
     testCaseStatus <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_status.log"))
     testCaseResult <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_result.log"))
     testCaseStats <- liftIO (fromMaybe "" <$> maybeReadFile (testCaseStatsFn cStoragePath guid))
@@ -253,10 +266,15 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{status}}", escapeHtml status)
                 , ("{{stats}}", escapeHtml stats)
                 , ("{{test_cases_status}}", escapeHtml testCaseStatus)
-                , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
+                , ("{{test_cases_cards}}", testCaseCards guid testCaseEntries)
                 , ("{{version_warning}}", escapeHtml versionWarning)
                 , ("{{wrench_version}}", escapeHtml wrenchVersion)
                 , ("{{test_cases_json}}", testCaseEntriesJson)
+                , ( "{{debug_nav}}"
+                  , if logExists
+                        then "      <span class=\"hidden lg:inline text-[var(--c-grey)]\">|</span>\n      <a href=\"/debug/" <> show guid <> "\" class=\"hover:bg-[var(--c-yellow)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-yellow)] hover:text-[var(--c-black)] cursor-pointer\">[debug]</a>"
+                        else ""
+                  )
                 ]
 
     let renderTemplate =
@@ -268,7 +286,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{result}}", formatCodeWithLineNumbers logContent)
                 , ("{{test_cases_result}}", formatCodeWithLineNumbers testCaseResult)
                 , ("{{test_cases_stats}}", formatCodeWithLineNumbers testCaseStats)
-                , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
+                , ("{{test_cases_cards}}", testCaseCards guid testCaseEntries)
                 , ("{{dump}}", formatCodeWithLineNumbers dump)
                 ]
 
@@ -285,6 +303,37 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 }
     liftIO $ trackEvent conf event
     return $ addHeader (trackCookie track) $ toHtmlRaw renderTemplate
+
+getDebug :: Config -> Maybe Text -> UUID -> Maybe Text -> Handler (Headers '[Header "Set-Cookie" Text] (Html ()))
+getDebug Config{cStoragePath} cookie guid mLogParam = do
+    let dir = cStoragePath <> "/" <> show guid
+        logName = maybe "exec_log.json" (toString . takeFileName . toString) mLogParam
+        logPath = dir </> logName
+
+    asmContent <- liftIO (fromMaybe "" <$> maybeReadFile (dir </> "source.s"))
+    variantContent <- liftIO (fromMaybe "-" <$> maybeReadFile (dir </> "variant.txt"))
+    isaContent <- liftIO (fromMaybe "unknown" <$> maybeReadFile (dir </> "isa.txt"))
+    nameContent <- liftIO (fromMaybe "" <$> maybeReadFile (dir </> "name.txt"))
+    execLogContent <- liftIO (maybeReadFile logPath)
+
+    template <- liftIO (decodeUtf8 <$> readFileBS "static/debug.html")
+
+    let rendered =
+            foldl'
+                (\st (pat, new) -> replace pat new st)
+                template
+                [ ("{{guid}}", show guid)
+                , ("{{asm_raw}}", escapeHtml asmContent)
+                , ("{{exec_log}}", fromMaybe "" execLogContent)
+                , ("{{isa}}", escapeHtml isaContent)
+                , ("{{variant}}", escapeHtml variantContent)
+                , ("{{name}}", escapeHtml nameContent)
+                , ("{{log_file}}", escapeHtml $ toText logName)
+                , ("{{back_link}}", "/report/" <> show guid)
+                ]
+
+    track <- liftIO $ getTrack cookie
+    return $ addHeader (trackCookie track) $ toHtmlRaw rendered
 
 getSubmissions :: Handler (Html ())
 getSubmissions = do
@@ -341,13 +390,19 @@ statusColor TestCaseEntry{tceExitCode, tceSuccess}
     | tceExitCode == 2 = "border border-yellow-500 text-yellow-500 dark:text-yellow-500"
     | otherwise = "border border-red-500 text-red-500 dark:text-red-500"
 
-testCaseCards :: [TestCaseEntry] -> Text
-testCaseCards [] = "No test cases."
-testCaseCards entries =
+execLogNameFromConf :: Text -> Text
+execLogNameFromConf confPath =
+    let base = toText $ takeFileName $ toString confPath
+        clean = T.map (\c -> if isAlphaNum c || c `elem` (".-_" :: String) then c else '_') base
+     in "exec_log." <> (if T.null clean then "testcase" else clean) <> ".json"
+
+testCaseCards :: UUID -> [TestCaseEntry] -> Text
+testCaseCards _ [] = "No test cases."
+testCaseCards guid entries =
     T.intercalate
         "\n"
         ( zipWith
-            ( \idx TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode} ->
+            ( \idx TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode, tceDebugLog} ->
                 let target = "testcase-" <> show idx
                     colorClass = statusColor TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode}
                     badgeText =
@@ -355,6 +410,8 @@ testCaseCards entries =
                             0 | tceSuccess -> "passed"
                             2 -> "error"
                             _ -> "failed"
+                    debugLink =
+                        fmap (\logName -> "/debug/" <> show guid <> "?log=" <> logName) tceDebugLog
                     statsBlock =
                         maybe
                             ""
@@ -379,6 +436,7 @@ testCaseCards entries =
                         , "<div class=\"p-4 bg-[var(--c-black)]\">"
                         , "<h4 class=\"text-[var(--c-grey)]\">/* status */</h4>"
                         , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">" <> escapeHtml tceStatus <> "</pre>"
+                        , maybe "" (\link -> "<div class=\"mt-2 mb-2\"><a class=\"outline-link text-[var(--c-blue)]\" style=\"--link-color: var(--c-blue);\" href=\"" <> link <> "\">[debug]</a></div>") debugLink
                         , statsBlock
                         , "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* report */</h4>"
                         , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded overflow-x-auto\">"

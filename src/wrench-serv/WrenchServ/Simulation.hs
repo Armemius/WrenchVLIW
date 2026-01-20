@@ -8,13 +8,15 @@ module WrenchServ.Simulation (
     spitSimulationRequest,
     dumpFn,
     statsFn,
+    execLogTestCaseFn,
     execLogFn,
     testCaseStatsFn,
     testCaseEntriesFn,
 ) where
 
 import Control.Exception (catch)
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON (..), ToJSON, (.:), (.:?), withObject)
+import Data.Char (isAlphaNum)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.UUID (UUID)
@@ -22,7 +24,7 @@ import Relude
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.Exit (ExitCode (ExitSuccess))
 import System.IO (hClose, openTempFile)
-import System.FilePath (takeDirectory)
+import System.FilePath (takeDirectory, takeFileName)
 import System.Process (readProcessWithExitCode)
 import Web.FormUrlEncoded (FromForm)
 import Wrench.Misc (wrenchVersion)
@@ -58,6 +60,13 @@ asmFn path guid = path <> "/" <> show guid <> "/source.s"
 wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
 statsFn path guid = path <> "/" <> show guid <> "/stats.log"
+execLogTestCaseFn :: FilePath -> UUID -> FilePath -> FilePath
+execLogTestCaseFn path guid confPath =
+    let base = takeFileName confPath
+        sanitize c = if isAlphaNum c || c `elem` ("._-" :: String) then c else '_'
+        cleaned = map sanitize base
+        namePart = if null cleaned then "testcase" else cleaned
+     in path <> "/" <> show guid <> "/exec_log." <> namePart <> ".json"
 execLogFn :: FilePath -> UUID -> FilePath
 execLogFn path guid = path <> "/" <> show guid <> "/exec_log.json"
 testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
@@ -85,6 +94,7 @@ data SimulationTask = SimulationTask
     , stAsmFn :: FilePath
     , stConfFn :: FilePath
     , stGuid :: UUID
+    , stExecLogPath :: Maybe FilePath
     }
     deriving (FromForm, Generic, Show)
 
@@ -109,12 +119,22 @@ data TestCaseEntry = TestCaseEntry
     , tceStats :: Maybe Text
     , tceLog :: Text
     , tceExitCode :: Int
+    , tceDebugLog :: Maybe Text
     }
     deriving (Generic, Show)
 
 instance ToJSON TestCaseEntry
 
-instance FromJSON TestCaseEntry
+instance FromJSON TestCaseEntry where
+    parseJSON = withObject "TestCaseEntry" $ \o ->
+        TestCaseEntry
+            <$> o .: "tceName"
+            <*> o .: "tceStatus"
+            <*> o .: "tceSuccess"
+            <*> o .:? "tceStats"
+            <*> o .: "tceLog"
+            <*> o .: "tceExitCode"
+            <*> o .:? "tceDebugLog"
 
 spitDump :: Config -> SimulationTask -> IO ()
 spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, stAsmFn, stGuid, stConfFn} = do
@@ -123,7 +143,7 @@ spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, st
     writeFileText (dumpFn cStoragePath stGuid) $ unlines $ map toText [stdoutDump, stderrDump]
 
 doSimulation :: Config -> SimulationTask -> IO SimulationResult
-doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit, cStoragePath} SimulationTask{stIsa, stAsmFn, stConfFn, stGuid} = do
+doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit, cStoragePath} SimulationTask{stIsa, stAsmFn, stConfFn, stGuid, stExecLogPath} = do
     (tmpStatsPath, tmpHandle) <- openTempFile "/tmp" "wrench-stats.log"
     hClose tmpHandle
     (tmpExecLogPath, tmpExecHandle) <- openTempFile "/tmp" "wrench-exec-log.json"
@@ -148,7 +168,7 @@ doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit, cStoragePath} Simulatio
     removeFile tmpStatsPath `catch` \(_ :: SomeException) -> return ()
     removeFile tmpExecLogPath `catch` \(_ :: SomeException) -> return ()
     for_ execLogPayload $ \payload -> do
-        let dest = execLogFn cStoragePath stGuid
+        let dest = fromMaybe (execLogFn cStoragePath stGuid) stExecLogPath
         createDirectoryIfMissing True (takeDirectory dest)
         writeFileBS dest payload
     let srStatusLog =
