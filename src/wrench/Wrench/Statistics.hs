@@ -1,5 +1,3 @@
-{-# LANGUAGE OverlappingInstances #-}
-
 module Wrench.Statistics (
     MemoryUsage (..),
     IoUsage (..),
@@ -23,11 +21,14 @@ import Wrench.Isa.RiscIv qualified as RiscIv
 import Wrench.Isa.VliwIv qualified as Vliw
 import Wrench.Machine.Memory (Memory (..), readInstruction)
 import Wrench.Machine.Types
+import Wrench.Translator.Types (SectionInfo (..), SectionKind (..))
 
 data MemoryUsage = MemoryUsage
     { muSectionBytes :: Int
     , muContiguousBytes :: Int
     , muUsedBytes :: Int
+    , muTextBytes :: Int
+    , muDataBytes :: Int
     }
     deriving (Show)
 
@@ -95,7 +96,7 @@ instance (MachineWord w) => SimHook (Vliw.VliwIvState w) (Vliw.Isa w w) w where
 
 collectStats ::
     (SimHook st isa w, ByteSizeT w) =>
-    [(Int, Int)] ->
+    [SectionInfo] ->
     Maybe SlotUsage ->
     IntMap ([w], [w]) ->
     IntMap ([w], [w]) ->
@@ -123,17 +124,19 @@ instance {-# OVERLAPPING #-} CompileSlotHook Vliw.Isa w where
             (totalSlots, nopSlots) = foldl' (\(t, n) i -> let (t', n') = Vliw.slotNopCount i in (t + t', n + n')) (0, 0) instrs
          in if totalSlots == 0 then Nothing else Just SlotUsage{suTotalSlots = totalSlots, suNopSlots = nopSlots}
 
-memoryStats :: [(Int, Int)] -> MemoryUsage
+memoryStats :: [SectionInfo] -> MemoryUsage
 memoryStats sectionsInfo =
-    let sectionBytes = sum $ map snd sectionsInfo
-        sorted = sortOn fst sectionsInfo
+    let sectionBytes = sum $ map siSize sectionsInfo
+        textBytes = sum [siSize | SectionInfo{siKind = TextKind, siSize} <- sectionsInfo]
+        dataBytes = sum [siSize | SectionInfo{siKind = DataKind, siSize} <- sectionsInfo]
+        sorted = sortOn siOffset sectionsInfo
         contiguous = contiguousSize 0 sorted
-        usedBytes = fromMaybe 0 $ viaNonEmpty maximum1 (map (uncurry (+)) sorted)
-     in MemoryUsage{muSectionBytes = sectionBytes, muContiguousBytes = contiguous, muUsedBytes = usedBytes}
+        usedBytes = fromMaybe 0 $ viaNonEmpty maximum1 (map (\SectionInfo{siOffset, siSize} -> siOffset + siSize) sorted)
+     in MemoryUsage{muSectionBytes = sectionBytes, muContiguousBytes = contiguous, muUsedBytes = usedBytes, muTextBytes = textBytes, muDataBytes = dataBytes}
 
-contiguousSize :: Int -> [(Int, Int)] -> Int
+contiguousSize :: Int -> [SectionInfo] -> Int
 contiguousSize cur [] = cur
-contiguousSize cur ((off, size) : rest)
+contiguousSize cur (SectionInfo{siOffset = off, siSize = size} : rest)
     | off > cur = cur
     | otherwise = contiguousSize (max cur (off + size)) rest
 
@@ -162,13 +165,15 @@ ioUsage initStreams finalStreams =
                 }
 
 formatStats :: SimulationStats -> Text
-formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile, ssIoUsage} =
+formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes, muTextBytes, muDataBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile, ssIoUsage} =
     unlines
         $ filter
             (not . T.null)
             [ "=== Simulation info ==="
             , "Memory usage:"
             , "  Sections total: " <> showT muSectionBytes <> " bytes"
+            , "  .text total: " <> showT muTextBytes <> " bytes"
+            , "  .data total: " <> showT muDataBytes <> " bytes"
             , "  Dump until first gap: " <> showT muContiguousBytes <> " bytes"
             , "  Used address space: " <> showT muUsedBytes <> " bytes"
             , maybe "" (\StackUsage{suDataMax, suReturnMax} -> "  F32A stack depth (data/return): " <> showT suDataMax <> "/" <> showT suReturnMax) ssStackUsage

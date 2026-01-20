@@ -18,7 +18,7 @@ import Wrench.Translator.Types
 data TranslatorResult mem w = TranslatorResult
     { dump :: !mem
     , labels :: !(HashMap String w)
-    , sectionsInfo :: ![(Int, Int)]
+    , sectionsInfo :: ![SectionInfo]
     }
     deriving (Show)
 
@@ -86,6 +86,15 @@ translate memorySize fn src =
                         sectionsWithOffsets = markupSectionOffsets 0 sections
                         code = map (uncurry (derefSection resolveLabel)) sectionsWithOffsets
                         dump = prepareDump memorySize code
-                        sectionsInfo = map (bimap fromEnum byteSize) sectionsWithOffsets
+                        sectionsInfo =
+                            map
+                                ( \(offset, section) ->
+                                    SectionInfo
+                                        { siOffset = fromEnum offset
+                                        , siSize = byteSize section
+                                        , siKind = case section of Code{} -> TextKind; Data{} -> DataKind
+                                        }
+                                )
+                                sectionsWithOffsets
                      in Right $ TranslatorResult{dump, labels, sectionsInfo}
         Left err -> Left $ toText $ errorBundlePretty err

@@ -5,6 +5,8 @@
 
 module Wrench.Translator.Types (
     Section (..),
+    SectionKind (..),
+    SectionInfo (..),
     CodeToken (..),
     DataToken (..),
     DataValue (..),
@@ -34,6 +36,16 @@ data Section isa w l
         { org :: Maybe Int
         , dataTokens :: ![DataToken w l]
         }
+    deriving (Show)
+
+data SectionKind = TextKind | DataKind
+    deriving (Show, Eq)
+
+data SectionInfo = SectionInfo
+    { siOffset :: Int
+    , siSize :: Int
+    , siKind :: SectionKind
+    }
     deriving (Show)
 
 instance (ByteSize isa, ByteSizeT w) => ByteSize (Section isa w l) where
