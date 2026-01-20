@@ -4,6 +4,7 @@ module Wrench.Statistics (
     StackUsage (..),
     SimulationStats (..),
     SimHook (..),
+    CompileSlotHook (..),
     collectStats,
     formatStats,
 ) where
@@ -11,7 +12,7 @@ module Wrench.Statistics (
 import Data.Text qualified as T
 import Numeric (showFFloat)
 import Relude
-import Relude.Extra (maximum1)
+import Relude.Extra (maximum1, toPairs)
 import Wrench.Isa.Acc32 qualified as Acc32
 import Wrench.Isa.F32a qualified as F32a
 import Wrench.Isa.M68k qualified as M68k
@@ -43,7 +44,8 @@ data SimulationStats = SimulationStats
     { ssMemory :: MemoryUsage
     , ssInstructionCount :: Int
     , ssStackUsage :: Maybe StackUsage
-    , ssSlotUsage :: Maybe SlotUsage
+    , ssSlotUsageRuntime :: Maybe SlotUsage
+    , ssSlotUsageCompile :: Maybe SlotUsage
     }
     deriving (Show)
 
@@ -82,15 +84,29 @@ instance (MachineWord w) => SimHook (Vliw.VliwIvState w) (Vliw.Isa w w) w where
 collectStats ::
     (SimHook st isa w) =>
     [(Int, Int)] ->
+    Maybe SlotUsage ->
     [Trace st isa] ->
     SimulationStats
-collectStats sectionsInfo traces =
+collectStats sectionsInfo compileSlot traces =
     SimulationStats
         { ssMemory = memoryStats sectionsInfo
         , ssInstructionCount = length [() | TState{} <- traces]
         , ssStackUsage = stackHook traces
-        , ssSlotUsage = slotHook traces
+        , ssSlotUsageRuntime = slotHook traces
+        , ssSlotUsageCompile = compileSlot
         }
+
+class CompileSlotHook (isa :: Type -> Type -> Type) w where
+    compileSlotUsage :: IntMap (Cell (isa w w) w) -> Maybe SlotUsage
+
+instance CompileSlotHook isa w where
+    compileSlotUsage _ = Nothing
+
+instance CompileSlotHook Vliw.Isa w where
+    compileSlotUsage cells =
+        let instrs = mapMaybe (\case (_addr, Instruction i) -> Just i; _ -> Nothing) $ toPairs cells
+            (totalSlots, nopSlots) = foldl' (\(t, n) i -> let (t', n') = Vliw.slotNopCount i in (t + t', n + n')) (0, 0) instrs
+         in if totalSlots == 0 then Nothing else Just SlotUsage{suTotalSlots = totalSlots, suNopSlots = nopSlots}
 
 memoryStats :: [(Int, Int)] -> MemoryUsage
 memoryStats sectionsInfo =
@@ -107,7 +123,7 @@ contiguousSize cur ((off, size) : rest)
     | otherwise = contiguousSize (max cur (off + size)) rest
 
 formatStats :: SimulationStats -> Text
-formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes}, ssInstructionCount, ssStackUsage, ssSlotUsage} =
+formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile} =
     unlines
         $ filter
             (not . T.null)
@@ -119,12 +135,13 @@ formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousB
             , maybe "" (\StackUsage{suDataMax, suReturnMax} -> "  F32A stack depth (data/return): " <> showT suDataMax <> "/" <> showT suReturnMax) ssStackUsage
             , "Instruction execution:"
             , "  Executed instructions: " <> showT ssInstructionCount
-            , maybe "" formatSlot ssSlotUsage
+            , maybe "" (formatSlot "runtime") ssSlotUsageRuntime
+            , maybe "" (formatSlot "compile") ssSlotUsageCompile
             ]
     where
-        formatSlot SlotUsage{suTotalSlots, suNopSlots} =
+        formatSlot label SlotUsage{suTotalSlots, suNopSlots} =
             let percent = if suTotalSlots == 0 then 0 else (fromIntegral suNopSlots * 100 :: Double) / fromIntegral suTotalSlots
                 percentText = toText $ showFFloat (Just 2) percent ""
-             in "  VLIW nop slots: " <> percentText <> "% (" <> showT suNopSlots <> "/" <> showT suTotalSlots <> ")"
+             in "  VLIW nop slots (" <> label <> "): " <> percentText <> "% (" <> showT suNopSlots <> "/" <> showT suTotalSlots <> ")"
         showT :: (Show a) => a -> Text
         showT = T.pack . show

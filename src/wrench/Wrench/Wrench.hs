@@ -116,6 +116,7 @@ wrenchIO ::
     , MnemonicParser isa1
     , Show (isa_ w w)
     , SimHook st isa2 w
+    , CompileSlotHook isa_ w
     , StateInterspector st (IoMem isa2 w) isa2 w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
@@ -154,6 +155,7 @@ wrench ::
     , MnemonicParser isa1
     , StateInterspector st (IoMem isa2 w) isa2 w
     , SimHook st isa2 w
+    , CompileSlotHook isa_ w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
     ) =>
@@ -171,7 +173,7 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
         st :: st = initState (fromEnum pc) ioDump randomStream
 
     traceLog <- powerOn cLimit maxStateLogLimit labels st
-    let stats = collectStats sectionsInfo traceLog
+    let stats = collectStats sectionsInfo (compileSlotUsage (dumpCells dump)) traceLog
 
     let reports = maybe [] (map (prepareReport trResult verbose traceLog)) cReports
         isSuccess = all fst reports
