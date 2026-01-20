@@ -56,6 +56,7 @@ type API =
     "submit-form" :> GetForm
         :<|> "submit" :> SubmitForm
         :<|> "report" :> GetReport
+        :<|> "submissions" :> Get '[HTML] (Html ())
         :<|> "assets" :> Raw
         :<|> Get '[JSON] (Headers '[Header "Location" Text] NoContent)
 
@@ -64,6 +65,7 @@ server conf =
     getForm conf
         :<|> submitForm conf
         :<|> getReport conf
+        :<|> getSubmissions
         :<|> serveDirectoryWebApp "static/assets"
         :<|> redirectToForm
 
@@ -215,6 +217,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
     configContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/config.yaml"))
     logContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/result.log"))
     status <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/status.log"))
+    isaContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/isa.txt"))
     stats <- liftIO (fromMaybe "" <$> maybeReadFile (statsFn cStoragePath guid))
     testCaseStatus <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_status.log"))
     testCaseResult <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_result.log"))
@@ -230,6 +233,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
             if reportWrenchVersion == wrenchVersion
                 then ""
                 else "Warning: report generated with wrench " <> reportWrenchVersion <> " but server is " <> wrenchVersion <> "."
+        testCaseEntriesJson = decodeUtf8 $ BL.toStrict $ encode testCaseEntries
 
     template <- liftIO (decodeUtf8 <$> readFileBS "static/result.html")
 
@@ -239,12 +243,17 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 (replace "{{tracker}}" postHogTracker template)
                 [ ("{{name}}", escapeHtml nameContent)
                 , ("{{variant}}", escapeHtml variantContent)
+                , ("{{variant_raw}}", variantContent)
+                , ("{{isa}}", escapeHtml isaContent)
+                , ("{{isa_raw}}", isaContent)
                 , ("{{comment}}", escapeHtml commentContent)
                 , ("{{status}}", escapeHtml status)
                 , ("{{stats}}", escapeHtml stats)
                 , ("{{test_cases_status}}", escapeHtml testCaseStatus)
                 , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
                 , ("{{version_warning}}", escapeHtml versionWarning)
+                , ("{{wrench_version}}", escapeHtml wrenchVersion)
+                , ("{{test_cases_json}}", testCaseEntriesJson)
                 ]
 
     let renderTemplate =
@@ -273,6 +282,11 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 }
     liftIO $ trackEvent conf event
     return $ addHeader (trackCookie track) $ toHtmlRaw renderTemplate
+
+getSubmissions :: Handler (Html ())
+getSubmissions = do
+    template :: Text <- liftIO (decodeUtf8 <$> readFileBS "static/submissions.html")
+    return $ toHtmlRaw template
 
 redirectToForm :: Handler (Headers '[Header "Location" Text] NoContent)
 redirectToForm = throwError $ err301{errHeaders = [("Location", "/submit-form")]}

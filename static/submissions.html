@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta content="#1a1a1a" name="theme-color" />
+    <title>My Submissions</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer type="module" src="/assets/utils.js"></script>
+    <script defer type="module" src="/assets/submissions.js"></script>
+    <link rel="stylesheet" href="/assets/ascii.css" />
+  </head>
+
+  <body
+    class="flex flex-col items-center bg-[var(--c-black)] min-h-screen text-[var(--c-white)] dark full"
+  >
+    <div class="mt-4 mb-6 w-full text-center">
+      <a
+        class="hover:bg-[var(--c-white)] text-[var(--c-white)] hover:text-[var(--c-black)] text-6xl cursor-pointer"
+        href="/"
+        >Wrench Submissions</a
+      >
+    </div>
+
+    <div
+      class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw] mb-4"
+    >
+      <a
+        href="https://github.com/ryukzak/wrench"
+        class="hover:bg-[var(--c-purple)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-purple)] hover:text-[var(--c-black)] cursor-pointer"
+        target="_blank"
+        >[github]</a
+      >
+      <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
+      <a
+        href="https://github.com/ryukzak/wrench/tree/master/docs"
+        class="hover:bg-[var(--c-fuschia)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-fuschia)] hover:text-[var(--c-black)] cursor-pointer"
+        target="_blank"
+        >[isa_docs]</a
+      >
+      <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
+      <a
+        href="https://github.com/ryukzak/wrench/blob/master/variants.md"
+        class="hover:bg-[var(--c-orange)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-orange)] hover:text-[var(--c-black)] cursor-pointer"
+        target="_blank"
+        >[variants]</a
+      >
+      <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
+      <a
+        href="/submissions"
+        class="hover:bg-[var(--c-green)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-green)] hover:text-[var(--c-black)] cursor-pointer"
+        >[my_submissions]</a
+      >
+      <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
+      <button
+        id="invert-theme-button"
+        class="hover:bg-[var(--c-blue)] text-[var(--c-blue)] hover:text-[var(--c-black)] cursor-pointer"
+      >
+        [invert_theme]
+      </button>
+    </div>
+
+    <div class="w-full max-w-[75vw] mb-6 px-2">
+      <h2 class="mb-2 text-[var(--c-grey)]">/* my_submissions */</h2>
+      <div id="submissions-list" class="flex flex-col gap-2"></div>
+    </div>
+    <script type="module">
+      import { renderSubmissions } from '/assets/submissions.js'
+      import { setupThemeToggle } from '/assets/utils.js'
+
+      document.addEventListener('DOMContentLoaded', () => {
+        renderSubmissions()
+        setupThemeToggle('invert-theme-button')
+      })
+    </script>
+  </body>
+</html>

@@ -21,10 +21,17 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer type="module" src="/assets/utils.js"></script>
+    <script defer type="module" src="/assets/submissions.js"></script>
 
     <link rel="stylesheet" href="/assets/ascii.css" />
 
     {{tracker}}
+    <script id="testcases-data" type="application/json">
+      {{test_cases_json}}
+    </script>
+    <span id="wrench-version" class="hidden">{{wrench_version}}</span>
+    <span id="isa-field" class="hidden">{{isa_raw}}</span>
+    <span id="variant-field" class="hidden">{{variant_raw}}</span>
   </head>
 
   <body
@@ -38,6 +45,7 @@
         findIsaFlag,
         setupHideCommentsButton,
       } from '/assets/utils.js'
+      import { recordSubmission, renderSubmissions } from '/assets/submissions.js'
 
       document.addEventListener('DOMContentLoaded', () => {
         setupCopyButton(
@@ -83,6 +91,44 @@
           'version-warning',
           'version-warning-empty',
         )
+
+        const testCasesRaw = document.getElementById('testcases-data')?.textContent
+        const isaRaw = document.getElementById('isa-field')?.textContent ?? ''
+        const variantRaw = document.getElementById('variant-field')?.textContent ?? ''
+        const wrenchVer = document.getElementById('wrench-version')?.textContent ?? ''
+
+        let testCases = []
+        try {
+          testCases = JSON.parse(testCasesRaw || '[]')
+        } catch (_e) {
+          testCases = []
+        }
+
+        const total = testCases.length
+        const passed = testCases.filter(
+          (tc) => tc.tceExitCode === 0 && tc.tceSuccess === true,
+        ).length
+        const hasCompileError = testCases.some((tc) => tc.tceExitCode === 2)
+        const status =
+          total === passed && total > 0
+            ? 'passed'
+            : hasCompileError
+              ? 'error'
+              : total === 0
+                ? 'no tests'
+                : 'failed'
+        const submission = {
+          timestamp: new Date().toISOString(),
+          status,
+          passed,
+          total,
+          isa: isaRaw.trim(),
+          variant: variantRaw.trim(),
+          wrenchVersion: wrenchVer.trim(),
+          link: window.location.href,
+        }
+        recordSubmission(submission)
+        renderSubmissions()
 
         setupThemeToggle('invert-theme-button')
 
@@ -133,6 +179,12 @@
         class="hover:bg-[var(--c-orange)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-orange)] hover:text-[var(--c-black)] cursor-pointer"
         target="_blank"
         >[variants]</a
+      >
+      <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
+      <a
+        href="/submissions"
+        class="hover:bg-[var(--c-green)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-green)] hover:text-[var(--c-black)] cursor-pointer"
+        >[my_submissions]</a
       >
       <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
       <button
