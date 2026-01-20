@@ -13,10 +13,13 @@ import Data.Default (Default (..), def)
 import Data.Text qualified as T
 import Relude
 import Relude.Extra
+import System.Directory (createDirectoryIfMissing)
 import System.Exit qualified as Exit
+import System.FilePath (takeDirectory)
 import System.Random (StdGen, mkStdGen, uniformR)
 import Text.Pretty.Simple
 import Wrench.Config
+import Wrench.Debug.Execution
 import Wrench.Isa.Acc32 (Acc32State)
 import Wrench.Isa.F32a (F32aState)
 import Wrench.Isa.M68k (M68kState)
@@ -43,6 +46,7 @@ data Options = Options
     , maxStateLogLimit :: Int
     , showStats :: Bool
     , statsFile :: Maybe FilePath
+    , execLogFile :: Maybe FilePath
     }
     deriving (Show)
 
@@ -59,6 +63,7 @@ instance Default Options where
             , maxStateLogLimit = 10000
             , showStats = False
             , statsFile = Nothing
+            , execLogFile = Nothing
             }
 
 data Isa = VliwIv | RiscIv | F32a | Acc32 | M68k
@@ -79,6 +84,7 @@ data Result mem w = Result
     , rSuccess :: Bool
     , rDump :: mem
     , rStats :: SimulationStats
+    , rExecution :: Maybe ExecutionLog
     }
     deriving (Show)
 
@@ -118,6 +124,7 @@ wrenchIO ::
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
+    , Memory (IoMem isa2 w) isa2 w
     , MachineWord w
     , MnemonicParser isa1
     , Show (isa_ w w)
@@ -130,13 +137,17 @@ wrenchIO ::
     -> Config
     -> [Char]
     -> IO ()
-wrenchIO opts@Options{isa, onlyTranslation, statsFile = statsFilePath, showStats} conf@Config{} src =
+wrenchIO opts@Options{isa, onlyTranslation, statsFile = statsFilePath, execLogFile = execLogFilePath, showStats} conf@Config{} src =
     case wrench @st opts conf src of
-        Right Result{rLabels, rTrace, rSuccess, rDump, rStats} -> do
+        Right Result{rLabels, rTrace, rSuccess, rDump, rStats, rExecution} -> do
             if onlyTranslation
                 then translationResult rLabels rDump
                 else do
                     for_ statsFilePath (\fp -> writeFileText fp (formatStats rStats))
+                    for_ execLogFilePath $ \fp ->
+                        for_ rExecution $ \log -> do
+                            createDirectoryIfMissing True (takeDirectory fp)
+                            writeExecutionLog fp log
                     when showStats $ putText $ formatStats rStats
                     putText rTrace
                     if rSuccess then exitSuccess else exitFailure
@@ -158,8 +169,10 @@ wrench ::
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
+    , Memory (IoMem isa2 w) isa2 w
     , MachineWord w
     , MnemonicParser isa1
+    , Show (isa_ w w)
     , SimHook st isa2 w
     , StateInterspector st (IoMem isa2 w) isa2 w
     , isa1 ~ isa_ w (Ref w)
@@ -170,7 +183,7 @@ wrench ::
     -> String
     -> Either Text (Result (IntMap (Cell isa2 w)) w)
 wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit, cMemoryMappedIoFlat, cReports, cSeed} src = do
-    trResult@TranslatorResult{dump, labels, sectionsInfo} <- translate cMemorySize fn src
+    trResult@TranslatorResult{dump, labels, sectionsInfo, sourceMap} <- translate cMemorySize fn src
 
     pc <- maybeToRight "_start label should be defined." (labels !? "_start")
     let mIoStreams = bimap (map int2mword) (map int2mword) <$> fromMaybe mempty cMemoryMappedIoFlat
@@ -183,6 +196,7 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
             let lastState = viaNonEmpty last traceLog >>= \case TState st' -> Just st'; _ -> Nothing
              in maybe mIoStreams ioStreams lastState
         stats = collectStats sectionsInfo (compileSlotUsage (dumpCells dump)) mIoStreams finalStreams traceLog
+        execution = buildExecutionLog labels sourceMap traceLog
 
     let reports = maybe [] (map (prepareReport trResult verbose traceLog)) cReports
         isSuccess = all fst reports
@@ -195,6 +209,7 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
             , rSuccess = isSuccess
             , rDump = dumpCells dump
             , rStats = stats
+            , rExecution = execution
             }
     where
         int2mword x

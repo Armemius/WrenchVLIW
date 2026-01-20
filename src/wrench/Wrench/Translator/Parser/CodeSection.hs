@@ -3,7 +3,8 @@ module Wrench.Translator.Parser.CodeSection (
 ) where
 
 import Relude
-import Text.Megaparsec (choice)
+import Text.Megaparsec (choice, getSourcePos, sourceLine)
+import Text.Megaparsec.Pos (unPos)
 import Text.Megaparsec.Char (hspace1, string)
 import Wrench.Translator.Parser.Misc
 import Wrench.Translator.Parser.Types
@@ -21,8 +22,14 @@ codeSection cstart = do
                 ( choice
                     [ nothing (hspace1 <|> eol' cstart)
                     , Just . Org <$> orgDirective cstart
-                    , Just . Item . Label <$> label
-                    , Just . Item . Mnemonic <$> mnemonic
+                    , Just . Item <$> withLine Label label
+                    , Just . Item <$> withLine Mnemonic mnemonic
                     ]
                 )
     return $ Code (sectionOrg items) $ sectionItems items
+
+withLine :: (a -> Maybe Int -> b) -> Parser a -> Parser b
+withLine ctor parser = do
+    pos <- getSourcePos
+    x <- parser
+    return $ ctor x (Just $ unPos $ sourceLine pos)

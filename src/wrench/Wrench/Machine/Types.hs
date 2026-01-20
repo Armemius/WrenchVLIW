@@ -159,6 +159,10 @@ class StateInterspector st m isa w | st -> m isa w where
     ioStreams :: st -> IntMap ([w], [w])
     reprState :: HashMap String w -> st -> Text -> Text
     reprState _labels _st var = "unknown variable: " <> var
+    stateRegisters :: st -> HashMap Text w
+    stateRegisters _ = mempty
+    stateStacks :: st -> HashMap Text [w]
+    stateStacks _ = mempty
 
 class Machine st isa w | st -> isa w where
     instructionFetch :: State st (Either Text (Int, isa))

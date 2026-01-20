@@ -345,6 +345,8 @@ instance (MachineWord w) => StateInterspector (MachineState (IoMem (Isa w w) w) 
             stack "dec" dt = toText $ intercalate ":" $ map show dt
             stack "hex" dt = T.intercalate ":" $ map (toText . word32ToHex) dt
             stack f _ = unknownFormat f
+    stateRegisters State{a, b} = fromList [("A", a), ("B", b)]
+    stateStacks State{dataStack, returnStack} = fromList [("data", dataStack), ("return", returnStack)]
 
 instance (MachineWord w) => Machine (MachineState (IoMem (Isa w w) w) w) (Isa w w) w where
     instructionFetch =

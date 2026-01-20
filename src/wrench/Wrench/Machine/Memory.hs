@@ -28,8 +28,8 @@ prepareDump memorySize sections =
         processCode =
             concatMap
                 ( \case
-                    Mnemonic m ->
-                        Instruction m : replicate (byteSize m - 1) InstructionPart
+                    Mnemonic{ctMnemonic} ->
+                        Instruction ctMnemonic : replicate (byteSize ctMnemonic - 1) InstructionPart
                     _other -> []
                 )
         processData =

@@ -8,6 +8,7 @@ module Wrench.Translator.Types (
     SectionKind (..),
     SectionInfo (..),
     CodeToken (..),
+    SourceInfo (..),
     DataToken (..),
     DataValue (..),
     ByteSize (..),
@@ -17,8 +18,10 @@ module Wrench.Translator.Types (
     DerefMnemonic (..),
     deref',
     Ref (..),
-    derefSection,
-) where
+    derefSection
+    ) where
+
+import Data.Aeson (ToJSON)
 
 import Relude
 import Wrench.Machine.Types
@@ -60,15 +63,22 @@ derefSection ::
     -> Section (isa (Ref w)) w String
     -> Section (isa w) w w
 derefSection f offset code@Code{codeTokens} =
-    let mnemonics = [m | Mnemonic m <- codeTokens]
-        marked :: [(w, isa (Ref w))]
-        marked = markupOffsets offset mnemonics
+    let mnemonics = [(ctLine, m) | Mnemonic{ctMnemonic = m, ctLine} <- codeTokens]
+        (_finalOffset, marked) =
+            mapAccumL
+                ( \curOffset (mLine, mnem) ->
+                    let start = curOffset
+                        curOffset' = curOffset + toEnum (byteSize mnem)
+                     in (curOffset', (start, mLine, mnem))
+                )
+                offset
+                mnemonics
      in code
             { codeTokens =
                 map
-                    ( \(offset', m) ->
-                        let m' = derefMnemonic f offset' m
-                         in Mnemonic m'
+                    ( \(offset', mLine, mnem) ->
+                        let m' = derefMnemonic f offset' mnem
+                         in Mnemonic{ctMnemonic = m', ctLine = mLine}
                     )
                     marked
             }
@@ -96,13 +106,25 @@ markupSectionOffsets offset (s : ss) =
      in (offset', s) : markupSectionOffsets (offset' + toEnum (byteSize s)) ss
 
 data CodeToken isa l
-    = Label l
-    | Mnemonic isa
-    deriving (Show)
+    = Label
+        { ctLabel :: l
+        , ctLine :: Maybe Int
+        }
+    | Mnemonic
+        { ctMnemonic :: isa
+        , ctLine :: Maybe Int
+        }
+    deriving (Show, Generic)
 
 instance (ByteSize isa) => ByteSize (CodeToken isa l) where
-    byteSize (Mnemonic m) = byteSize m
-    byteSize _ = 0
+    byteSize Mnemonic{ctMnemonic} = byteSize ctMnemonic
+    byteSize Label{} = 0
+
+data SourceInfo = SourceInfo
+    { siLine :: !Int
+    , siText :: !Text
+    }
+    deriving (Show, Generic, ToJSON)
 
 data Ref w
     = Ref (w -> w) String

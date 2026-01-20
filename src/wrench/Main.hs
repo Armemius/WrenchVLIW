@@ -92,6 +92,13 @@ options =
                     <> metavar "FILE"
                 )
             )
+        <*> optional
+            ( strOption
+                ( long "exec-log"
+                    <> help "Write execution log (JSON) to a file"
+                    <> metavar "FILE"
+                )
+            )
 
 main :: IO ()
 main = runWrenchIO =<< execParser opts

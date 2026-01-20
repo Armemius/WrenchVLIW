@@ -275,6 +275,12 @@ instance (MachineWord w) => StateInterspector (MachineState (IoMem (Isa w w) w) 
             ["Acc", f] -> viewRegister f acc
             [r, _] -> unknownView r
             _ -> errorView v
+    stateRegisters State{acc, overflowFlag, carryFlag} =
+        fromList
+            [ ("ACC", acc)
+            , ("V", toEnum @w (if overflowFlag then 1 else 0))
+            , ("C", toEnum @w (if carryFlag then 1 else 0))
+            ]
 
 instance (MachineWord w) => Machine (MachineState (IoMem (Isa w w) w) w) (Isa w w) w where
     instructionFetch =

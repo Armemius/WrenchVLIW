@@ -460,6 +460,8 @@ instance (MachineWord w) => StateInterspector (MachineState (IoMem (Isa w w) w) 
                 , Just r'' <- regs !? r' ->
                     viewRegister f r''
             _ -> errorView v
+    stateRegisters State{regs} =
+        fromList $ map (\(k, v) -> (T.pack $ show k, v)) $ toPairs regs
 
 instance (MachineWord w) => Machine (MachineState (IoMem (Isa w w) w) w) (Isa w w) w where
     instructionFetch =

@@ -8,6 +8,7 @@ module WrenchServ.Simulation (
     spitSimulationRequest,
     dumpFn,
     statsFn,
+    execLogFn,
     testCaseStatsFn,
     testCaseEntriesFn,
 ) where
@@ -21,6 +22,7 @@ import Relude
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.Exit (ExitCode (ExitSuccess))
 import System.IO (hClose, openTempFile)
+import System.FilePath (takeDirectory)
 import System.Process (readProcessWithExitCode)
 import Web.FormUrlEncoded (FromForm)
 import Wrench.Misc (wrenchVersion)
@@ -56,6 +58,8 @@ asmFn path guid = path <> "/" <> show guid <> "/source.s"
 wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
 statsFn path guid = path <> "/" <> show guid <> "/stats.log"
+execLogFn :: FilePath -> UUID -> FilePath
+execLogFn path guid = path <> "/" <> show guid <> "/exec_log.json"
 testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
 
 testCaseEntriesFn :: FilePath -> UUID -> FilePath
@@ -119,10 +123,14 @@ spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, st
     writeFileText (dumpFn cStoragePath stGuid) $ unlines $ map toText [stdoutDump, stderrDump]
 
 doSimulation :: Config -> SimulationTask -> IO SimulationResult
-doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit} SimulationTask{stIsa, stAsmFn, stConfFn} = do
+doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit, cStoragePath} SimulationTask{stIsa, stAsmFn, stConfFn, stGuid} = do
     (tmpStatsPath, tmpHandle) <- openTempFile "/tmp" "wrench-stats.log"
     hClose tmpHandle
-    let args = cWrenchArgs <> ["--isa", toString stIsa, stAsmFn, "-c", stConfFn, "--stats-file", tmpStatsPath]
+    (tmpExecLogPath, tmpExecHandle) <- openTempFile "/tmp" "wrench-exec-log.json"
+    hClose tmpExecHandle
+    let args =
+            cWrenchArgs
+                <> ["--isa", toString stIsa, stAsmFn, "-c", stConfFn, "--stats-file", tmpStatsPath, "--exec-log", tmpExecLogPath]
         srCmd = T.intercalate " " $ map toText ([cWrenchPath] <> args)
     simConf <- decodeUtf8 <$> readFileBS stConfFn
     currentTime <- getCurrentTime
@@ -132,7 +140,17 @@ doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit} SimulationTask{stIsa, s
         if exist
             then Just . decodeUtf8 <$> readFileBS tmpStatsPath
             else return Nothing
+    execLogPayload <- do
+        exist <- doesFileExist tmpExecLogPath
+        if exist
+            then Just <$> readFileBS tmpExecLogPath
+            else return Nothing
     removeFile tmpStatsPath `catch` \(_ :: SomeException) -> return ()
+    removeFile tmpExecLogPath `catch` \(_ :: SomeException) -> return ()
+    for_ execLogPayload $ \payload -> do
+        let dest = execLogFn cStoragePath stGuid
+        createDirectoryIfMissing True (takeDirectory dest)
+        writeFileBS dest payload
     let srStatusLog =
             T.intercalate
                 "\n"

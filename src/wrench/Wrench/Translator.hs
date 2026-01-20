@@ -7,6 +7,7 @@ module Wrench.Translator (
 
 import Relude
 import Relude.Extra
+import Prelude qualified as P
 import Text.Megaparsec (parse)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Wrench.Machine.Memory
@@ -19,6 +20,7 @@ data TranslatorResult mem w = TranslatorResult
     { dump :: !mem
     , labels :: !(HashMap String w)
     , sectionsInfo :: ![SectionInfo]
+    , sourceMap :: !(HashMap Int SourceInfo)
     }
     deriving (Show)
 
@@ -36,8 +38,8 @@ evaluateLabels ::
 evaluateLabels sections =
     let processCode st'@St{sOffset, sLabels} token =
             case token of
-                Mnemonic m -> st'{sOffset = sOffset + toEnum (byteSize m)}
-                Label l -> st'{sLabels = (l, sOffset) : sLabels}
+                Mnemonic{ctMnemonic} -> st'{sOffset = sOffset + toEnum (byteSize ctMnemonic)}
+                Label{ctLabel} -> st'{sLabels = (ctLabel, sOffset) : sLabels}
         processData st'@St{sOffset, sLabels} DataToken{dtLabel, dtValue} =
             st'
                 { sOffset = sOffset + toEnum (byteSize dtValue)
@@ -96,5 +98,40 @@ translate memorySize fn src =
                                         }
                                 )
                                 sectionsWithOffsets
-                     in Right $ TranslatorResult{dump, labels, sectionsInfo}
+                        srcLines = P.lines src
+                        lookupLine n = maybe "" toText (srcLines !!? (n - 1))
+                        sourceMap =
+                            foldl'
+                                ( \acc (baseOffset, section) ->
+                                    case section of
+                                        Code{codeTokens} ->
+                                            fst
+                                                $ foldl'
+                                                    ( \(accum, curOff) tok ->
+                                                        case tok of
+                                                            Mnemonic{ctMnemonic, ctLine} ->
+                                                                let accum' =
+                                                                        maybe
+                                                                            accum
+                                                                            ( \ln ->
+                                                                                insert
+                                                                                    (fromEnum curOff)
+                                                                                    SourceInfo
+                                                                                        { siLine = ln
+                                                                                        , siText = lookupLine ln
+                                                                                        }
+                                                                                    accum
+                                                                            )
+                                                                            ctLine
+                                                                    curOff' = curOff + toEnum (byteSize ctMnemonic)
+                                                                 in (accum', curOff')
+                                                            Label{} -> (accum, curOff)
+                                                    )
+                                                    (acc, baseOffset)
+                                                    codeTokens
+                                        _ -> acc
+                                )
+                                mempty
+                                sectionsWithOffsets
+                     in Right $ TranslatorResult{dump, labels, sectionsInfo, sourceMap}
         Left err -> Left $ toText $ errorBundlePretty err

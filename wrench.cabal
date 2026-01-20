@@ -26,6 +26,7 @@ library
   exposed-modules:
       Main
       Wrench.Config
+      Wrench.Debug.Execution
       Wrench.Isa.Acc32
       Wrench.Isa.F32a
       Wrench.Isa.M68k
@@ -82,6 +83,7 @@ library
     , aeson-casing
     , base >=4.7 && <5
     , data-default
+    , directory
     , filepath
     , gitrev
     , megaparsec
@@ -155,6 +157,7 @@ executable wrench
     , aeson-casing
     , base >=4.7 && <5
     , data-default
+    , directory
     , filepath
     , gitrev
     , megaparsec

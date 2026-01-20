@@ -419,6 +419,19 @@ instance (MachineWord w) => StateInterspector (MachineState (IoMem (Isa w w) w) 
                 , Just r'' <- addrRegs !? r' ->
                     viewRegister f r''
             _ -> errorView v
+    stateRegisters State{dataRegs, addrRegs, nFlag, zFlag, vFlag, cFlag} =
+        let flags =
+                fromList
+                    [ ("N", toEnum @w (if nFlag then 1 else 0))
+                    , ("Z", toEnum @w (if zFlag then 1 else 0))
+                    , ("V", toEnum @w (if vFlag then 1 else 0))
+                    , ("C", toEnum @w (if cFlag then 1 else 0))
+                    ]
+            regs =
+                fromList $
+                    map (\(k, v) -> (T.pack $ show k, v)) (toPairs dataRegs)
+                        <> map (\(k, v) -> (T.pack $ show k, v)) (toPairs addrRegs)
+         in regs <> flags
 
 indirectAddr f r index = do
     State{addrRegs, dataRegs} <- get
