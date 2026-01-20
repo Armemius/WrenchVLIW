@@ -46,8 +46,10 @@ export const renderSubmissions = () => {
           <div class="flex items-center gap-2">
           ${
             e.link
-              ? `<button class="text-[var(--c-blue)] hover:underline text-sm copy-submission mr-2" data-link="${e.link}">copy_link</button>
-                   <button class="text-[var(--c-blue)] hover:underline text-sm open-submission mr-4" data-link="${e.link}">open</button>`
+              ? `<div class="flex items-center gap-2 mr-2">
+                   <button type="button" class="outline-link text-[var(--c-blue)] text-sm copy-submission" style="--link-color: var(--c-blue);" data-link="${e.link}">[copy_link]</button>
+                   <button type="button" class="outline-link text-[var(--c-green)] text-sm open-submission" style="--link-color: var(--c-green);" data-link="${e.link}">[open]</button>
+                 </div>`
               : ''
           }
             ${

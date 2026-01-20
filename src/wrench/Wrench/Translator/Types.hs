@@ -39,7 +39,7 @@ data Section isa w l
     deriving (Show)
 
 data SectionKind = TextKind | DataKind
-    deriving (Show, Eq)
+    deriving (Eq, Show)
 
 data SectionInfo = SectionInfo
     { siOffset :: Int

@@ -206,7 +206,6 @@ instance ByteSize (Isa w l) where
 
 type F32aState w = MachineState (IoMem (Isa w w) w) w
 
-
 stackDepths :: F32aState w -> (Int, Int)
 stackDepths State{dataStack, returnStack} = (length dataStack, length returnStack)
 

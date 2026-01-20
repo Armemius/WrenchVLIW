@@ -36,7 +36,17 @@ data SimulationRequest = SimulationRequest
     }
     deriving (FromForm, Generic, Show)
 
-nameFn, commentFn, variantFn, isaFn, configFn, asmFn, wrenchVersionFn, dumpFn, statsFn, testCaseStatsFn :: FilePath -> UUID -> FilePath
+nameFn
+    , commentFn
+    , variantFn
+    , isaFn
+    , configFn
+    , asmFn
+    , wrenchVersionFn
+    , dumpFn
+    , statsFn
+    , testCaseStatsFn ::
+        FilePath -> UUID -> FilePath
 nameFn path guid = path <> "/" <> show guid <> "/name.txt"
 commentFn path guid = path <> "/" <> show guid <> "/comment.txt"
 variantFn path guid = path <> "/" <> show guid <> "/variant.txt"
@@ -47,6 +57,7 @@ wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
 statsFn path guid = path <> "/" <> show guid <> "/stats.log"
 testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
+
 testCaseEntriesFn :: FilePath -> UUID -> FilePath
 testCaseEntriesFn path guid = path <> "/" <> show guid <> "/test_cases.json"
 
@@ -98,6 +109,7 @@ data TestCaseEntry = TestCaseEntry
     deriving (Generic, Show)
 
 instance ToJSON TestCaseEntry
+
 instance FromJSON TestCaseEntry
 
 spitDump :: Config -> SimulationTask -> IO ()

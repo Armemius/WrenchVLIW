@@ -123,7 +123,8 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
 
     liftIO $ spitDump conf simulationTask
 
-    SimulationResult{srOutput, srStatusLog, srStats, srSuccess = userSimSuccess} <- liftIO $ doSimulation conf simulationTask
+    SimulationResult{srOutput, srStatusLog, srStats, srSuccess = userSimSuccess} <-
+        liftIO $ doSimulation conf simulationTask
 
     liftIO $ writeFileText (dir <> "/status.log") srStatusLog
     liftIO $ writeFileText (dir <> "/result.log") srOutput
@@ -357,7 +358,11 @@ testCaseCards entries =
                     statsBlock =
                         maybe
                             ""
-                            (\s -> "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* stats */</h4><pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">" <> escapeHtml s <> "</pre>")
+                            ( \s ->
+                                "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* stats */</h4><pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">"
+                                    <> escapeHtml s
+                                    <> "</pre>"
+                            )
                             tceStats
                  in mconcat
                         [ "<details class=\"bg-[var(--c-dark-grey)] mb-2 rounded-lg overflow-hidden\" id=\""

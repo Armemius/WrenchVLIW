@@ -13,8 +13,8 @@ import Data.Default (Default (..), def)
 import Data.Text qualified as T
 import Relude
 import Relude.Extra
-import System.Random (StdGen, mkStdGen, uniformR)
 import System.Exit qualified as Exit
+import System.Random (StdGen, mkStdGen, uniformR)
 import Text.Pretty.Simple
 import Wrench.Config
 import Wrench.Isa.Acc32 (Acc32State)
@@ -25,8 +25,8 @@ import Wrench.Isa.VliwIv (VliwIvState)
 import Wrench.Machine
 import Wrench.Machine.Memory
 import Wrench.Machine.Types
-import Wrench.Statistics
 import Wrench.Report
+import Wrench.Statistics
 import Wrench.Translator
 import Wrench.Translator.Parser.Types
 import Wrench.Translator.Types
@@ -114,6 +114,7 @@ wrenchIO ::
     forall st isa_ w isa1 isa2.
     ( ByteSize isa1
     , ByteSize isa2
+    , CompileSlotHook isa_ w
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
@@ -121,7 +122,6 @@ wrenchIO ::
     , MnemonicParser isa1
     , Show (isa_ w w)
     , SimHook st isa2 w
-    , CompileSlotHook isa_ w
     , StateInterspector st (IoMem isa2 w) isa2 w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
@@ -154,14 +154,14 @@ wrench ::
     forall st isa_ w isa1 isa2.
     ( ByteSize isa1
     , ByteSize isa2
+    , CompileSlotHook isa_ w
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
     , MachineWord w
     , MnemonicParser isa1
-    , StateInterspector st (IoMem isa2 w) isa2 w
     , SimHook st isa2 w
-    , CompileSlotHook isa_ w
+    , StateInterspector st (IoMem isa2 w) isa2 w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
     ) =>

@@ -70,7 +70,9 @@ class SimHook st isa w | st -> isa w where
     slotHook _ = Nothing
 
 instance (MachineWord w) => SimHook (Acc32.Acc32State w) (Acc32.Isa w w) w
+
 instance (MachineWord w) => SimHook (RiscIv.RiscIvState w) (RiscIv.Isa w w) w
+
 instance (MachineWord w) => SimHook (M68k.M68kState w) (M68k.Isa w w) w
 
 instance (MachineWord w) => SimHook (F32a.F32aState w) (F32a.Isa w w) w where
@@ -95,13 +97,13 @@ instance (MachineWord w) => SimHook (Vliw.VliwIvState w) (Vliw.Isa w w) w where
          in if totalSlots == 0 then Nothing else Just SlotUsage{suTotalSlots = totalSlots, suNopSlots = nopSlots}
 
 collectStats ::
-    (SimHook st isa w, ByteSizeT w) =>
-    [SectionInfo] ->
-    Maybe SlotUsage ->
-    IntMap ([w], [w]) ->
-    IntMap ([w], [w]) ->
-    [Trace st isa] ->
-    SimulationStats
+    (ByteSizeT w, SimHook st isa w) =>
+    [SectionInfo]
+    -> Maybe SlotUsage
+    -> IntMap ([w], [w])
+    -> IntMap ([w], [w])
+    -> [Trace st isa]
+    -> SimulationStats
 collectStats sectionsInfo compileSlot initStreams finalStreams traces =
     SimulationStats
         { ssMemory = memoryStats sectionsInfo
@@ -132,7 +134,13 @@ memoryStats sectionsInfo =
         sorted = sortOn siOffset sectionsInfo
         contiguous = contiguousSize 0 sorted
         usedBytes = fromMaybe 0 $ viaNonEmpty maximum1 (map (\SectionInfo{siOffset, siSize} -> siOffset + siSize) sorted)
-     in MemoryUsage{muSectionBytes = sectionBytes, muContiguousBytes = contiguous, muUsedBytes = usedBytes, muTextBytes = textBytes, muDataBytes = dataBytes}
+     in MemoryUsage
+            { muSectionBytes = sectionBytes
+            , muContiguousBytes = contiguous
+            , muUsedBytes = usedBytes
+            , muTextBytes = textBytes
+            , muDataBytes = dataBytes
+            }
 
 contiguousSize :: Int -> [SectionInfo] -> Int
 contiguousSize cur [] = cur
@@ -165,34 +173,46 @@ ioUsage initStreams finalStreams =
                 }
 
 formatStats :: SimulationStats -> Text
-formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes, muTextBytes, muDataBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile, ssIoUsage} =
-    unlines
-        $ filter
-            (not . T.null)
-            [ "=== Simulation info ==="
-            , "Memory usage:"
-            , "  Sections total: " <> showT muSectionBytes <> " bytes"
-            , "  .text total: " <> showT muTextBytes <> " bytes"
-            , "  .data total: " <> showT muDataBytes <> " bytes"
-            , "  Dump until first gap: " <> showT muContiguousBytes <> " bytes"
-            , "  Used address space: " <> showT muUsedBytes <> " bytes"
-            , maybe "" (\StackUsage{suDataMax, suReturnMax} -> "  F32A stack depth (data/return): " <> showT suDataMax <> "/" <> showT suReturnMax) ssStackUsage
-            , "Instruction execution:"
-            , "  Executed instructions: " <> showT ssInstructionCount
-            , maybe "" (formatSlot "runtime") ssSlotUsageRuntime
-            , maybe "" (formatSlot "compile") ssSlotUsageCompile
-            , maybe "" formatIo ssIoUsage
-            ]
-    where
-        formatSlot label SlotUsage{suTotalSlots, suNopSlots} =
-            let percent = if suTotalSlots == 0 then 0 else (fromIntegral suNopSlots * 100 :: Double) / fromIntegral suTotalSlots
-                percentText = toText $ showFFloat (Just 2) percent ""
-             in "  VLIW nop slots (" <> label <> "): " <> percentText <> "% (" <> showT suNopSlots <> "/" <> showT suTotalSlots <> ")"
-        formatIo IoUsage{iuReads, iuReadBytes, iuWrites, iuWriteBytes} =
-            unlines
-                [ "IO:"
-                , "  Reads: " <> showT iuReads <> " words (" <> showT iuReadBytes <> " bytes)"
-                , "  Writes: " <> showT iuWrites <> " words (" <> showT iuWriteBytes <> " bytes)"
+formatStats
+    SimulationStats
+        { ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes, muTextBytes, muDataBytes}
+        , ssInstructionCount
+        , ssStackUsage
+        , ssSlotUsageRuntime
+        , ssSlotUsageCompile
+        , ssIoUsage
+        } =
+        unlines
+            $ filter
+                (not . T.null)
+                [ "=== Simulation info ==="
+                , "Memory usage:"
+                , "  Sections total: " <> showT muSectionBytes <> " bytes"
+                , "  .text total: " <> showT muTextBytes <> " bytes"
+                , "  .data total: " <> showT muDataBytes <> " bytes"
+                , "  Dump until first gap: " <> showT muContiguousBytes <> " bytes"
+                , "  Used address space: " <> showT muUsedBytes <> " bytes"
+                , maybe
+                    ""
+                    ( \StackUsage{suDataMax, suReturnMax} -> "  F32A stack depth (data/return): " <> showT suDataMax <> "/" <> showT suReturnMax
+                    )
+                    ssStackUsage
+                , "Instruction execution:"
+                , "  Executed instructions: " <> showT ssInstructionCount
+                , maybe "" (formatSlot "runtime") ssSlotUsageRuntime
+                , maybe "" (formatSlot "compile") ssSlotUsageCompile
+                , maybe "" formatIo ssIoUsage
                 ]
-        showT :: (Show a) => a -> Text
-        showT = T.pack . show
+        where
+            formatSlot label SlotUsage{suTotalSlots, suNopSlots} =
+                let percent = if suTotalSlots == 0 then 0 else (fromIntegral suNopSlots * 100 :: Double) / fromIntegral suTotalSlots
+                    percentText = toText $ showFFloat (Just 2) percent ""
+                 in "  VLIW nop slots (" <> label <> "): " <> percentText <> "% (" <> showT suNopSlots <> "/" <> showT suTotalSlots <> ")"
+            formatIo IoUsage{iuReads, iuReadBytes, iuWrites, iuWriteBytes} =
+                unlines
+                    [ "IO:"
+                    , "  Reads: " <> showT iuReads <> " words (" <> showT iuReadBytes <> " bytes)"
+                    , "  Writes: " <> showT iuWrites <> " words (" <> showT iuWriteBytes <> " bytes)"
+                    ]
+            showT :: (Show a) => a -> Text
+            showT = T.pack . show

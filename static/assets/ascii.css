@@ -177,6 +177,19 @@ select > option {
   color: var(--c-green);
 }
 
+.outline-link {
+  border: none;
+  border-radius: 0;
+  padding: 0.2em 0.6em;
+  background: transparent;
+  color: var(--link-color, inherit);
+}
+
+.outline-link:hover {
+  background: var(--link-color, currentColor);
+  color: var(--c-black);
+}
+
 /* Fix for accordion headers when expanded */
 [aria-expanded='true'] {
   padding-left: 0 !important;

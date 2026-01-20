@@ -18,9 +18,7 @@ const unescapeHtml = text =>
     .replace(/&#x([0-9a-fA-F]+);/g, (_m, hex) =>
       String.fromCharCode(parseInt(hex, 16)),
     )
-    .replace(/&#(\d+);/g, (_m, dec) =>
-      String.fromCharCode(parseInt(dec, 10)),
-    )
+    .replace(/&#(\d+);/g, (_m, dec) => String.fromCharCode(parseInt(dec, 10)))
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -295,13 +293,13 @@ const highlightAsmLine = (line, isa) => {
   for (let i = 0; i < body.length; i++) {
     const ch = body[i]
     if (!inStr && (ch === '"' || ch === "'")) {
-      if (current) segments.push({text: current, isString: false})
+      if (current) segments.push({ text: current, isString: false })
       inStr = ch
       current = ch
     } else if (inStr) {
       current += ch
       if (ch === inStr && body[i - 1] !== '\\') {
-        segments.push({text: current, isString: true})
+        segments.push({ text: current, isString: true })
         current = ''
         inStr = null
       }
@@ -309,7 +307,7 @@ const highlightAsmLine = (line, isa) => {
       current += ch
     }
   }
-  if (current) segments.push({text: current, isString: !!inStr})
+  if (current) segments.push({ text: current, isString: !!inStr })
 
   const processCode = code => {
     const mnemoRe = buildMnemonicRegex(rule.mnemonics)
@@ -342,7 +340,7 @@ const highlightAsmLine = (line, isa) => {
     ].filter(p => p.re)
 
     const matches = []
-    for (const {re, wrap, priority} of patterns) {
+    for (const { re, wrap, priority } of patterns) {
       re.lastIndex = 0
       let m
       while ((m = re.exec(code)) !== null) {

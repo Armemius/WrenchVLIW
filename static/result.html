@@ -46,7 +46,10 @@
         findIsaFlag,
         setupHideCommentsButton,
       } from '/assets/utils.js'
-      import { recordSubmission, renderSubmissions } from '/assets/submissions.js'
+      import {
+        recordSubmission,
+        renderSubmissions,
+      } from '/assets/submissions.js'
       import { highlightReports } from '/assets/code-highlight.js'
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -100,10 +103,13 @@
           versionEmpty?.classList.remove('hidden')
         }
 
-        const testCasesRaw = document.getElementById('testcases-data')?.textContent
+        const testCasesRaw =
+          document.getElementById('testcases-data')?.textContent
         const isaRaw = document.getElementById('isa-field')?.textContent ?? ''
-        const variantRaw = document.getElementById('variant-field')?.textContent ?? ''
-        const wrenchVer = document.getElementById('wrench-version')?.textContent ?? ''
+        const variantRaw =
+          document.getElementById('variant-field')?.textContent ?? ''
+        const wrenchVer =
+          document.getElementById('wrench-version')?.textContent ?? ''
 
         let testCases = []
         try {
@@ -114,9 +120,9 @@
 
         const total = testCases.length
         const passed = testCases.filter(
-          (tc) => tc.tceExitCode === 0 && tc.tceSuccess === true,
+          tc => tc.tceExitCode === 0 && tc.tceSuccess === true,
         ).length
-        const hasCompileError = testCases.some((tc) => tc.tceExitCode === 2)
+        const hasCompileError = testCases.some(tc => tc.tceExitCode === 2)
         const status =
           total === passed && total > 0
             ? 'passed'
@@ -397,9 +403,7 @@
         </div>
 
         <h2 class="mt-6 mb-4 text-[var(--c-grey)]">/* test_cases */</h2>
-        <div id="test-cases-cards">
-          {{test_cases_cards}}
-        </div>
+        <div id="test-cases-cards">{{test_cases_cards}}</div>
         <div
           id="accordion-collapse-dump"
           data-accordion="collapse"
