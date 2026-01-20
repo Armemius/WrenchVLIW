@@ -78,6 +78,12 @@
           }
         })
 
+        handleEmptyContent(
+          'version-warning-text',
+          'version-warning',
+          'version-warning-empty',
+        )
+
         setupThemeToggle('invert-theme-button')
 
         const isa = findIsaFlag(
@@ -98,6 +104,14 @@
         >Wrench Report</a
       >
     </div>
+
+    <div
+      id="version-warning"
+      class="w-full max-w-[75vw] mb-4 p-3 border border-yellow-500 text-[var(--c-yellow)] bg-[var(--c-black)]"
+    >
+      <span id="version-warning-text">{{version_warning}}</span>
+    </div>
+    <div id="version-warning-empty" class="hidden"></div>
 
     <div class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw]">
       <a

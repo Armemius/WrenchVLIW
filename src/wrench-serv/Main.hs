@@ -226,6 +226,10 @@ getReport conf@Config{cStoragePath} cookie guid = do
             then decodeUtf8 <$> readFileBS (dir <> "/wrench-version.txt")
             else return "< 0.2.11"
     dump <- liftIO (fromMaybe "DUMP NOT AVAILABLE" <$> maybeReadFile (dumpFn cStoragePath guid))
+    let versionWarning =
+            if reportWrenchVersion == wrenchVersion
+                then ""
+                else "Warning: report generated with wrench " <> reportWrenchVersion <> " but server is " <> wrenchVersion <> "."
 
     template <- liftIO (decodeUtf8 <$> readFileBS "static/result.html")
 
@@ -240,6 +244,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{stats}}", escapeHtml stats)
                 , ("{{test_cases_status}}", escapeHtml testCaseStatus)
                 , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
+                , ("{{version_warning}}", escapeHtml versionWarning)
                 ]
 
     let renderTemplate =
