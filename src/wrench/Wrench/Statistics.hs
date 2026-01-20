@@ -1,5 +1,8 @@
+{-# LANGUAGE OverlappingInstances #-}
+
 module Wrench.Statistics (
     MemoryUsage (..),
+    IoUsage (..),
     SlotUsage (..),
     StackUsage (..),
     SimulationStats (..),
@@ -12,7 +15,7 @@ module Wrench.Statistics (
 import Data.Text qualified as T
 import Numeric (showFFloat)
 import Relude
-import Relude.Extra (maximum1, toPairs)
+import Relude.Extra (maximum1, toPairs, (!?))
 import Wrench.Isa.Acc32 qualified as Acc32
 import Wrench.Isa.F32a qualified as F32a
 import Wrench.Isa.M68k qualified as M68k
@@ -25,6 +28,14 @@ data MemoryUsage = MemoryUsage
     { muSectionBytes :: Int
     , muContiguousBytes :: Int
     , muUsedBytes :: Int
+    }
+    deriving (Show)
+
+data IoUsage = IoUsage
+    { iuReads :: Int
+    , iuReadBytes :: Int
+    , iuWrites :: Int
+    , iuWriteBytes :: Int
     }
     deriving (Show)
 
@@ -46,6 +57,7 @@ data SimulationStats = SimulationStats
     , ssStackUsage :: Maybe StackUsage
     , ssSlotUsageRuntime :: Maybe SlotUsage
     , ssSlotUsageCompile :: Maybe SlotUsage
+    , ssIoUsage :: Maybe IoUsage
     }
     deriving (Show)
 
@@ -82,27 +94,30 @@ instance (MachineWord w) => SimHook (Vliw.VliwIvState w) (Vliw.Isa w w) w where
          in if totalSlots == 0 then Nothing else Just SlotUsage{suTotalSlots = totalSlots, suNopSlots = nopSlots}
 
 collectStats ::
-    (SimHook st isa w) =>
+    (SimHook st isa w, ByteSizeT w) =>
     [(Int, Int)] ->
     Maybe SlotUsage ->
+    IntMap ([w], [w]) ->
+    IntMap ([w], [w]) ->
     [Trace st isa] ->
     SimulationStats
-collectStats sectionsInfo compileSlot traces =
+collectStats sectionsInfo compileSlot initStreams finalStreams traces =
     SimulationStats
         { ssMemory = memoryStats sectionsInfo
         , ssInstructionCount = length [() | TState{} <- traces]
         , ssStackUsage = stackHook traces
         , ssSlotUsageRuntime = slotHook traces
         , ssSlotUsageCompile = compileSlot
+        , ssIoUsage = ioUsage initStreams finalStreams
         }
 
 class CompileSlotHook (isa :: Type -> Type -> Type) w where
     compileSlotUsage :: IntMap (Cell (isa w w) w) -> Maybe SlotUsage
 
-instance CompileSlotHook isa w where
+instance {-# OVERLAPPABLE #-} CompileSlotHook isa w where
     compileSlotUsage _ = Nothing
 
-instance CompileSlotHook Vliw.Isa w where
+instance {-# OVERLAPPING #-} CompileSlotHook Vliw.Isa w where
     compileSlotUsage cells =
         let instrs = mapMaybe (\case (_addr, Instruction i) -> Just i; _ -> Nothing) $ toPairs cells
             (totalSlots, nopSlots) = foldl' (\(t, n) i -> let (t', n') = Vliw.slotNopCount i in (t + t', n + n')) (0, 0) instrs
@@ -122,8 +137,32 @@ contiguousSize cur ((off, size) : rest)
     | off > cur = cur
     | otherwise = contiguousSize (max cur (off + size)) rest
 
+ioUsage :: forall w. (ByteSizeT w) => IntMap ([w], [w]) -> IntMap ([w], [w]) -> Maybe IoUsage
+ioUsage initStreams finalStreams =
+    let keys = ordNub $ map fst (toPairs initStreams) <> map fst (toPairs finalStreams)
+        readOps =
+            sum
+                [ length initIs - length (fromMaybe ([], osInit) (finalStreams !? k) & fst)
+                | (k, (initIs, osInit)) <- toPairs initStreams
+                ]
+        writes =
+            sum
+                [ length finalOs - length initOs
+                | k <- keys
+                , let initOs = maybe [] snd (initStreams !? k)
+                , let finalOs = maybe [] snd (finalStreams !? k)
+                ]
+        bytePerWord = byteSizeT @w
+     in Just
+            IoUsage
+                { iuReads = readOps
+                , iuReadBytes = readOps * bytePerWord
+                , iuWrites = writes
+                , iuWriteBytes = writes * bytePerWord
+                }
+
 formatStats :: SimulationStats -> Text
-formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile} =
+formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousBytes, muUsedBytes}, ssInstructionCount, ssStackUsage, ssSlotUsageRuntime, ssSlotUsageCompile, ssIoUsage} =
     unlines
         $ filter
             (not . T.null)
@@ -137,11 +176,18 @@ formatStats SimulationStats{ssMemory = MemoryUsage{muSectionBytes, muContiguousB
             , "  Executed instructions: " <> showT ssInstructionCount
             , maybe "" (formatSlot "runtime") ssSlotUsageRuntime
             , maybe "" (formatSlot "compile") ssSlotUsageCompile
+            , maybe "" formatIo ssIoUsage
             ]
     where
         formatSlot label SlotUsage{suTotalSlots, suNopSlots} =
             let percent = if suTotalSlots == 0 then 0 else (fromIntegral suNopSlots * 100 :: Double) / fromIntegral suTotalSlots
                 percentText = toText $ showFFloat (Just 2) percent ""
              in "  VLIW nop slots (" <> label <> "): " <> percentText <> "% (" <> showT suNopSlots <> "/" <> showT suTotalSlots <> ")"
+        formatIo IoUsage{iuReads, iuReadBytes, iuWrites, iuWriteBytes} =
+            unlines
+                [ "IO:"
+                , "  Reads: " <> showT iuReads <> " words (" <> showT iuReadBytes <> " bytes)"
+                , "  Writes: " <> showT iuWrites <> " words (" <> showT iuWriteBytes <> " bytes)"
+                ]
         showT :: (Show a) => a -> Text
         showT = T.pack . show

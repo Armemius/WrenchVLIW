@@ -173,7 +173,10 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
         st :: st = initState (fromEnum pc) ioDump randomStream
 
     traceLog <- powerOn cLimit maxStateLogLimit labels st
-    let stats = collectStats sectionsInfo (compileSlotUsage (dumpCells dump)) traceLog
+    let finalStreams =
+            let lastState = viaNonEmpty last traceLog >>= \case TState st' -> Just st'; _ -> Nothing
+             in maybe mIoStreams ioStreams lastState
+        stats = collectStats sectionsInfo (compileSlotUsage (dumpCells dump)) mIoStreams finalStreams traceLog
 
     let reports = maybe [] (map (prepareReport trResult verbose traceLog)) cReports
         isSuccess = all fst reports
