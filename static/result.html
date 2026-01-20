@@ -86,11 +86,17 @@
           }
         })
 
-        handleEmptyContent(
-          'version-warning-text',
-          'version-warning',
-          'version-warning-empty',
-        )
+        const versionWarning = document.getElementById('version-warning')
+        const versionText = document.getElementById('version-warning-text')
+        const versionEmpty = document.getElementById('version-warning-empty')
+        const versionMessage = versionText?.textContent.trim()
+        if (versionMessage) {
+          versionWarning?.classList.remove('hidden')
+          versionEmpty?.classList.add('hidden')
+        } else {
+          versionWarning?.classList.add('hidden')
+          versionEmpty?.classList.remove('hidden')
+        }
 
         const testCasesRaw = document.getElementById('testcases-data')?.textContent
         const isaRaw = document.getElementById('isa-field')?.textContent ?? ''
@@ -153,7 +159,7 @@
 
     <div
       id="version-warning"
-      class="w-full max-w-[75vw] mb-4 p-3 border border-yellow-500 text-[var(--c-yellow)] bg-[var(--c-black)]"
+      class="hidden w-full max-w-[75vw] mb-4 p-3 border border-yellow-500 text-[var(--c-yellow)] bg-[var(--c-black)]"
     >
       <span id="version-warning-text">{{version_warning}}</span>
     </div>
