@@ -5,6 +5,7 @@ FROM haskell:9.10.1-bullseye AS wrench-builder
 
 RUN apt-get update && apt-get install -y \
     libgmp-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -33,7 +34,23 @@ COPY script /app
 RUN [ "python", "/app/variants.py" ]
 
 ###########################################################
-# Stage 3: Create a minimal runtime container
+# Stage 2.3: Prebuild example reports and index
+
+FROM wrench-build AS wrench-examples
+COPY --from=wrench-variants /app/variants /app/variants
+
+RUN chmod +x script/build_examples.sh
+RUN EXAMPLE_PORT=8090 \
+    EXAMPLE_ROOT=/app/example \
+    EXAMPLE_OUTPUT=/app/example-reports \
+    EXAMPLES_JSON=/app/static/assets/examples.json \
+    WRENCH_SERV_BIN=/app/.local/bin/wrench-serv \
+    WRENCH_BIN=/app/.local/bin/wrench \
+    VARIANTS=/app/variants \
+    bash ./script/build_examples.sh
+
+###########################################################
+# Stage 4: Create a minimal runtime container
 
 FROM debian:bullseye-slim
 
@@ -49,12 +66,17 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 ENV VARIANTS=/app/variants
 ENV WRENCH_EXEC=wrench
+ENV STORAGE_PATH=/data
 
 WORKDIR /app
 COPY --from=wrench-build /app/.local/bin/wrench /app/.local/bin/wrench-serv /app/.local/bin/wrench-fmt /bin/
 COPY --from=wrench-variants /app/variants /app/variants
-COPY static /app/static
+COPY --from=wrench-examples /app/static /app/static
+COPY --from=wrench-examples /app/example-reports /app/example-reports
+COPY docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["wrench-serv"]

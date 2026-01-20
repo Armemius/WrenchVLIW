@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta content="#1a1a1a" name="theme-color" />
-    <title>My Submissions</title>
+    <title>Wrench Examples</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +14,7 @@
     />
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer type="module" src="/assets/utils.js"></script>
-    <script defer type="module" src="/assets/submissions.js"></script>
+    <script defer type="module" src="/assets/examples.js"></script>
     <link rel="stylesheet" href="/assets/ascii.css" />
   </head>
 
@@ -25,13 +25,11 @@
       <a
         class="hover:bg-[var(--c-white)] text-[var(--c-white)] hover:text-[var(--c-black)] text-6xl cursor-pointer"
         href="/"
-        >Wrench Submissions</a
+        >Wrench Examples</a
       >
     </div>
 
-    <div
-      class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw] mb-4"
-    >
+    <div class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw] mb-4">
       <a
         href="https://github.com/ryukzak/wrench"
         class="hover:bg-[var(--c-purple)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-purple)] hover:text-[var(--c-black)] cursor-pointer"
@@ -74,15 +72,18 @@
     </div>
 
     <div class="w-full max-w-[75vw] mb-6 px-2">
-      <h2 class="mb-2 text-[var(--c-grey)]">/* my_submissions */</h2>
-      <div id="submissions-list" class="flex flex-col gap-2"></div>
+      <h2 class="mb-2 text-[var(--c-grey)]">/* curated_examples */</h2>
+      <div id="examples-status" class="text-[var(--c-grey)] mb-2">
+        Loading examples...
+      </div>
+      <div id="examples-list" class="flex flex-col gap-2"></div>
     </div>
     <script type="module">
-      import { renderSubmissions } from '/assets/submissions.js'
+      import { renderExamples } from '/assets/examples.js'
       import { setupThemeToggle } from '/assets/utils.js'
 
       document.addEventListener('DOMContentLoaded', () => {
-        renderSubmissions()
+        renderExamples()
         setupThemeToggle('invert-theme-button')
       })
     </script>

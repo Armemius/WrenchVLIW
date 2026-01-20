@@ -57,6 +57,7 @@ type API =
         :<|> "submit" :> SubmitForm
         :<|> "report" :> GetReport
         :<|> "submissions" :> Get '[HTML] (Html ())
+        :<|> "examples" :> Get '[HTML] (Html ())
         :<|> "assets" :> Raw
         :<|> Get '[JSON] (Headers '[Header "Location" Text] NoContent)
 
@@ -66,6 +67,7 @@ server conf =
         :<|> submitForm conf
         :<|> getReport conf
         :<|> getSubmissions
+        :<|> getExamples
         :<|> serveDirectoryWebApp "static/assets"
         :<|> redirectToForm
 
@@ -286,6 +288,11 @@ getReport conf@Config{cStoragePath} cookie guid = do
 getSubmissions :: Handler (Html ())
 getSubmissions = do
     template :: Text <- liftIO (decodeUtf8 <$> readFileBS "static/submissions.html")
+    return $ toHtmlRaw template
+
+getExamples :: Handler (Html ())
+getExamples = do
+    template :: Text <- liftIO (decodeUtf8 <$> readFileBS "static/examples.html")
     return $ toHtmlRaw template
 
 redirectToForm :: Handler (Headers '[Header "Location" Text] NoContent)
