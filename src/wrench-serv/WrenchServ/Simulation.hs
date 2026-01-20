@@ -6,14 +6,18 @@ module WrenchServ.Simulation (
     spitDump,
     spitSimulationRequest,
     dumpFn,
+    statsFn,
+    testCaseStatsFn,
 ) where
 
+import Control.Exception (catch)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.UUID (UUID)
 import Relude
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.Exit (ExitCode (ExitSuccess))
+import System.IO (hClose, openTempFile)
 import System.Process (readProcessWithExitCode)
 import Web.FormUrlEncoded (FromForm)
 import Wrench.Misc (wrenchVersion)
@@ -29,7 +33,7 @@ data SimulationRequest = SimulationRequest
     }
     deriving (FromForm, Generic, Show)
 
-nameFn, commentFn, variantFn, isaFn, configFn, asmFn, wrenchVersionFn, dumpFn :: FilePath -> UUID -> FilePath
+nameFn, commentFn, variantFn, isaFn, configFn, asmFn, wrenchVersionFn, dumpFn, statsFn, testCaseStatsFn :: FilePath -> UUID -> FilePath
 nameFn path guid = path <> "/" <> show guid <> "/name.txt"
 commentFn path guid = path <> "/" <> show guid <> "/comment.txt"
 variantFn path guid = path <> "/" <> show guid <> "/variant.txt"
@@ -38,6 +42,8 @@ configFn path guid = path <> "/" <> show guid <> "/config.yaml"
 asmFn path guid = path <> "/" <> show guid <> "/source.s"
 wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
+statsFn path guid = path <> "/" <> show guid <> "/stats.log"
+testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
 
 spitSimulationRequest :: FilePath -> UUID -> SimulationRequest -> IO ()
 spitSimulationRequest cStoragePath guid SimulationRequest{name, asm, config, comment, variant, isa} = do
@@ -71,6 +77,8 @@ data SimulationResult = SimulationResult
     , srTestCaseStatus :: Text
     , srTestCase :: Text
     , srSuccess :: Bool
+    , srStats :: Maybe Text
+    , srConfigPath :: FilePath
     }
     deriving (Generic, Show)
 
@@ -82,11 +90,19 @@ spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, st
 
 doSimulation :: Config -> SimulationTask -> IO SimulationResult
 doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit} SimulationTask{stIsa, stAsmFn, stConfFn} = do
-    let args = cWrenchArgs <> ["--isa", toString stIsa, stAsmFn, "-c", stConfFn]
+    (tmpStatsPath, tmpHandle) <- openTempFile "/tmp" "wrench-stats.log"
+    hClose tmpHandle
+    let args = cWrenchArgs <> ["--isa", toString stIsa, stAsmFn, "-c", stConfFn, "--stats-file", tmpStatsPath]
         srCmd = T.intercalate " " $ map toText ([cWrenchPath] <> args)
     simConf <- decodeUtf8 <$> readFileBS stConfFn
     currentTime <- getCurrentTime
     (srExitCode, out, err) <- readProcessWithExitCode cWrenchPath args ""
+    statsText <- do
+        exist <- doesFileExist tmpStatsPath
+        if exist
+            then Just . decodeUtf8 <$> readFileBS tmpStatsPath
+            else return Nothing
+    removeFile tmpStatsPath `catch` \(_ :: SomeException) -> return ()
     let srStatusLog =
             T.intercalate
                 "\n"
@@ -117,4 +133,6 @@ doSimulation Config{cWrenchPath, cWrenchArgs, cLogLimit} SimulationTask{stIsa, s
             , srStatusLog
             , srTestCase
             , srTestCaseStatus
+            , srStats = statsText
+            , srConfigPath = stConfFn
             }

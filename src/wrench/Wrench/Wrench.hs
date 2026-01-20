@@ -40,6 +40,8 @@ data Options = Options
     , maxInstructionLimit :: Int
     , maxMemoryLimit :: Int
     , maxStateLogLimit :: Int
+    , showStats :: Bool
+    , statsFile :: Maybe FilePath
     }
     deriving (Show)
 
@@ -54,6 +56,8 @@ instance Default Options where
             , maxInstructionLimit = 8000000
             , maxMemoryLimit = 8192
             , maxStateLogLimit = 10000
+            , showStats = False
+            , statsFile = Nothing
             }
 
 data Isa = VliwIv | RiscIv | F32a | Acc32 | M68k
@@ -125,13 +129,14 @@ wrenchIO ::
     -> Config
     -> [Char]
     -> IO ()
-wrenchIO opts@Options{isa, onlyTranslation} conf@Config{} src =
+wrenchIO opts@Options{isa, onlyTranslation, statsFile = statsFilePath, showStats} conf@Config{} src =
     case wrench @st opts conf src of
         Right Result{rLabels, rTrace, rSuccess, rDump, rStats} -> do
             if onlyTranslation
                 then translationResult rLabels rDump
                 else do
-                    putText $ formatStats rStats
+                    for_ statsFilePath (\fp -> writeFileText fp (formatStats rStats))
+                    when showStats $ putText $ formatStats rStats
                     putText rTrace
                     if rSuccess then exitSuccess else exitFailure
         Left e -> wrenchError e

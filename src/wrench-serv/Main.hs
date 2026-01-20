@@ -117,10 +117,11 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
 
     liftIO $ spitDump conf simulationTask
 
-    SimulationResult{srOutput, srStatusLog, srSuccess = userSimSuccess} <- liftIO $ doSimulation conf simulationTask
+    SimulationResult{srOutput, srStatusLog, srStats, srSuccess = userSimSuccess} <- liftIO $ doSimulation conf simulationTask
 
     liftIO $ writeFileText (dir <> "/status.log") srStatusLog
     liftIO $ writeFileText (dir <> "/result.log") srOutput
+    liftIO $ writeFileText (statsFn cStoragePath guid) $ fromMaybe "" srStats
 
     varChecks <- case variant of
         Nothing -> return []
@@ -135,12 +136,18 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         liftIO $ appendFileText tsStatus srTestCaseStatus
 
     liftIO $ writeFile (dir <> "/test_cases_result.log") ""
+    liftIO $ writeFile (testCaseStatsFn cStoragePath guid) ""
 
     let wins = filter (\(SimulationResult{srExitCode}) -> srExitCode == ExitSuccess) varChecks
         fails = filter (\(SimulationResult{srExitCode}) -> srExitCode /= ExitSuccess) varChecks
     forM_ (take 1 fails) $ \(SimulationResult{srTestCase}) -> do
         let testCaseLogFn = dir <> "/test_cases_result.log"
         liftIO $ writeFileText testCaseLogFn srTestCase
+
+    forM_ varChecks $ \(SimulationResult{srStats, srConfigPath}) -> do
+        let testCaseStatsFn' = testCaseStatsFn cStoragePath guid
+        let header = "# " <> toText srConfigPath <> "\n"
+        liftIO $ appendFileText testCaseStatsFn' $ header <> fromMaybe "stats not available\n" srStats <> "\n"
 
     endAt <- liftIO now
     track <- liftIO $ getTrack cookie
@@ -187,8 +194,10 @@ getReport conf@Config{cStoragePath} cookie guid = do
     configContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/config.yaml"))
     logContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/result.log"))
     status <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/status.log"))
+    stats <- liftIO (fromMaybe "" <$> maybeReadFile (statsFn cStoragePath guid))
     testCaseStatus <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_status.log"))
     testCaseResult <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_result.log"))
+    testCaseStats <- liftIO (fromMaybe "" <$> maybeReadFile (testCaseStatsFn cStoragePath guid))
     reportWrenchVersion <- liftIO $ do
         exist <- doesFileExist (dir <> "/wrench-version.txt")
         if exist
@@ -206,6 +215,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{variant}}", escapeHtml variantContent)
                 , ("{{comment}}", escapeHtml commentContent)
                 , ("{{status}}", escapeHtml status)
+                , ("{{stats}}", escapeHtml stats)
                 , ("{{test_cases_status}}", escapeHtml testCaseStatus)
                 ]
 
@@ -217,6 +227,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{yaml_content}}", formatCodeWithLineNumbers configContent)
                 , ("{{result}}", formatCodeWithLineNumbers logContent)
                 , ("{{test_cases_result}}", formatCodeWithLineNumbers testCaseResult)
+                , ("{{test_cases_stats}}", formatCodeWithLineNumbers testCaseStats)
                 , ("{{dump}}", formatCodeWithLineNumbers dump)
                 ]
 

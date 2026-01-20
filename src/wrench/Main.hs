@@ -81,6 +81,17 @@ options =
                 <> value (maxStateLogLimit def)
                 <> showDefault
             )
+        <*> switch
+            ( long "show-stats"
+                <> help "Print simulation statistics to stdout"
+            )
+        <*> optional
+            ( strOption
+                ( long "stats-file"
+                    <> help "Write simulation statistics to a file"
+                    <> metavar "FILE"
+                )
+            )
 
 main :: IO ()
 main = runWrenchIO =<< execParser opts
