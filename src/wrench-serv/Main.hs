@@ -146,20 +146,20 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         let testCaseLogFn = dir <> "/test_cases_result.log"
         liftIO $ writeFileText testCaseLogFn srTestCase
 
-    forM_ varChecks $ \(SimulationResult{srStats, srConfigPath}) -> do
+    forM_ varChecks $ \(SimulationResult{srStats = srStatsCase, srConfigPath}) -> do
         let testCaseStatsFn' = testCaseStatsFn cStoragePath guid
         let header = "# " <> toText srConfigPath <> "\n"
-        liftIO $ appendFileText testCaseStatsFn' $ header <> fromMaybe "stats not available\n" srStats <> "\n"
+        liftIO $ appendFileText testCaseStatsFn' $ header <> fromMaybe "stats not available\n" srStatsCase <> "\n"
 
     -- Persist structured test case data for the report view.
     let testCaseEntries =
             map
-                ( \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats, srTestCase, srExitCode} ->
+                ( \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats = srStatsCase, srTestCase, srExitCode} ->
                     TestCaseEntry
                         { tceName = toText srConfigPath
                         , tceStatus = srTestCaseStatus
                         , tceSuccess = srSuccess
-                        , tceStats = srStats
+                        , tceStats = srStatsCase
                         , tceLog = srTestCase
                         , tceExitCode = case srExitCode of
                             ExitSuccess -> 0
