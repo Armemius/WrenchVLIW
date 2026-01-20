@@ -22,6 +22,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer type="module" src="/assets/utils.js"></script>
     <script defer type="module" src="/assets/submissions.js"></script>
+    <script defer type="module" src="/assets/code-highlight.js"></script>
 
     <link rel="stylesheet" href="/assets/ascii.css" />
 
@@ -46,6 +47,7 @@
         setupHideCommentsButton,
       } from '/assets/utils.js'
       import { recordSubmission, renderSubmissions } from '/assets/submissions.js'
+      import { highlightReports } from '/assets/code-highlight.js'
 
       document.addEventListener('DOMContentLoaded', () => {
         setupCopyButton(
@@ -123,18 +125,26 @@
               : total === 0
                 ? 'no tests'
                 : 'failed'
-        const submission = {
-          timestamp: new Date().toISOString(),
-          status,
-          passed,
-          total,
-          isa: isaRaw.trim(),
-          variant: variantRaw.trim(),
-          wrenchVersion: wrenchVer.trim(),
-          link: window.location.href,
+        const commentText = document
+          .getElementById('comment-text-element')
+          ?.textContent?.trim()
+        const isExample = commentText?.toLowerCase().startsWith('example:')
+
+        if (!isExample) {
+          const submission = {
+            timestamp: new Date().toISOString(),
+            status,
+            passed,
+            total,
+            isa: isaRaw.trim(),
+            variant: variantRaw.trim(),
+            wrenchVersion: wrenchVer.trim(),
+            link: window.location.href,
+          }
+          recordSubmission(submission)
+          renderSubmissions()
         }
-        recordSubmission(submission)
-        renderSubmissions()
+        highlightReports(isaRaw.trim().toLowerCase())
 
         setupThemeToggle('invert-theme-button')
 

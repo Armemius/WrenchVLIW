@@ -142,6 +142,41 @@ select > option {
   min-height: 1.2em;
 }
 
+/* Syntax highlight accents */
+.asm-comment,
+.yaml-comment {
+  color: var(--c-grey);
+}
+
+.asm-number,
+.yaml-number {
+  color: var(--c-blue);
+}
+
+.asm-reg {
+  color: var(--c-green);
+}
+
+.asm-mnemonic {
+  color: var(--c-purple);
+}
+
+.asm-label {
+  color: var(--c-orange);
+}
+
+.yaml-key {
+  color: var(--c-orange-low-saturation);
+}
+
+.yaml-string {
+  color: var(--c-green);
+}
+
+.asm-string {
+  color: var(--c-green);
+}
+
 /* Fix for accordion headers when expanded */
 [aria-expanded='true'] {
   padding-left: 0 !important;
