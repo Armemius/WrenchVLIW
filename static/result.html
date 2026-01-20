@@ -60,25 +60,14 @@
           'dump-empty-tag',
         )
         handleEmptyContent(
-          'test-cases-result-text-element',
-          'accordion-collapse-test-cases-result',
-          'test-cases-result-empty-tag',
-        )
-        handleEmptyContent(
           'simulation-log-text-element',
           'accordion-collapse-simulation-log',
           'simulation-log-empty-tag',
-        )
-        handleEmptyContent(
-          'test-cases-stats-text-element',
-          'accordion-collapse-test-cases-stats',
-          'test-cases-stats-empty-tag',
         )
 
         // Handle status elements
         const statusElements = [
           { id: 'status-text-element', label: 'status' },
-          { id: 'test-cases-status-element', label: 'test_cases_status' },
           { id: 'stats-text-element', label: 'simulation_stats' },
         ]
 
@@ -319,85 +308,9 @@
           <span class="text-[var(--c-grey)]"> /* nothing returned */</span>
         </div>
 
-        <h2 class="mt-6 mb-4 text-[var(--c-grey)]">/* testcase_result */</h2>
-        <pre
-          id="test-cases-status-element"
-          class="bg-[var(--c-dark-grey)] mb-4 p-4 rounded-lg overflow-x-auto"
-        >
-{{test_cases_status}}</pre
-        >
-
-        <div
-          id="accordion-collapse-test-cases-result"
-          data-accordion="collapse"
-          class="bg-[var(--c-dark-grey)] mb-4 p-4 rounded-lg"
-          data-inactive-classes="vim-folded text-[var(--c-orange-low-saturation)]"
-          data-active-classes="text-[var(--c-orange-low-saturation)] bg-transparent"
-        >
-          <h2
-            id="accordion-collapse-heading-test-cases-result"
-            class="flex justify-between items-center hover:bg-[var(--c-white)] hover:opacity-80 w-full text-[var(--c-orange-low-saturation)] hover:text-[var(--c-black)] text-left hover:cursor-pointer vim-folded"
-            data-accordion-target="#accordion-collapse-body-test-cases-result"
-            aria-expanded="false"
-            aria-controls="accordion-collapse-body-test-cases-result"
-          >
-            <span class="flex-1 select-none">failed_test_case =</span>
-          </h2>
-          <div
-            id="accordion-collapse-body-test-cases-result"
-            class="hidden"
-            aria-labelledby="accordion-collapse-heading-test-cases-result"
-          >
-            <div
-              id="test-cases-result-text-element"
-              class="pb-4 rounded-lg overflow-x-auto"
-            >
-              {{test_cases_result}}
-            </div>
-          </div>
-        </div>
-        <div
-          id="test-cases-result-empty-tag"
-          class="hidden bg-[var(--c-dark-grey)] mb-4 p-4 rounded-lg"
-        >
-          failed_test_case = ""
-          <span class="text-[var(--c-grey)]"> /* nothing returned */</span>
-        </div>
-        <div
-          id="accordion-collapse-test-cases-stats"
-          data-accordion="collapse"
-          class="bg-[var(--c-dark-grey)] mb-4 p-4 rounded-lg"
-          data-inactive-classes="vim-folded text-[var(--c-orange-low-saturation)]"
-          data-active-classes="text-[var(--c-orange-low-saturation)] bg-transparent"
-        >
-          <h2
-            id="accordion-collapse-heading-test-cases-stats"
-            class="flex justify-between items-center hover:bg-[var(--c-white)] hover:opacity-80 w-full text-[var(--c-orange-low-saturation)] hover:text-[var(--c-black)] text-left hover:cursor-pointer vim-folded"
-            data-accordion-target="#accordion-collapse-body-test-cases-stats"
-            aria-expanded="false"
-            aria-controls="accordion-collapse-body-test-cases-stats"
-          >
-            <span class="flex-1 select-none">test_cases_stats =</span>
-          </h2>
-          <div
-            id="accordion-collapse-body-test-cases-stats"
-            class="hidden"
-            aria-labelledby="accordion-collapse-heading-test-cases-stats"
-          >
-            <div
-              id="test-cases-stats-text-element"
-              class="pb-4 rounded-lg overflow-x-auto"
-            >
-              {{test_cases_stats}}
-            </div>
-          </div>
-        </div>
-        <div
-          id="test-cases-stats-empty-tag"
-          class="hidden bg-[var(--c-dark-grey)] mb-4 p-4 rounded-lg"
-        >
-          test_cases_stats = ""
-          <span class="text-[var(--c-grey)]"> /* nothing returned */</span>
+        <h2 class="mt-6 mb-4 text-[var(--c-grey)]">/* test_cases */</h2>
+        <div id="test-cases-cards">
+          {{test_cases_cards}}
         </div>
         <div
           id="accordion-collapse-dump"

@@ -2,15 +2,18 @@ module WrenchServ.Simulation (
     SimulationRequest (..),
     SimulationResult (..),
     SimulationTask (..),
+    TestCaseEntry (..),
     doSimulation,
     spitDump,
     spitSimulationRequest,
     dumpFn,
     statsFn,
     testCaseStatsFn,
+    testCaseEntriesFn,
 ) where
 
 import Control.Exception (catch)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.UUID (UUID)
@@ -44,6 +47,8 @@ wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
 statsFn path guid = path <> "/" <> show guid <> "/stats.log"
 testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
+testCaseEntriesFn :: FilePath -> UUID -> FilePath
+testCaseEntriesFn path guid = path <> "/" <> show guid <> "/test_cases.json"
 
 spitSimulationRequest :: FilePath -> UUID -> SimulationRequest -> IO ()
 spitSimulationRequest cStoragePath guid SimulationRequest{name, asm, config, comment, variant, isa} = do
@@ -81,6 +86,19 @@ data SimulationResult = SimulationResult
     , srConfigPath :: FilePath
     }
     deriving (Generic, Show)
+
+data TestCaseEntry = TestCaseEntry
+    { tceName :: Text
+    , tceStatus :: Text
+    , tceSuccess :: Bool
+    , tceStats :: Maybe Text
+    , tceLog :: Text
+    , tceExitCode :: Int
+    }
+    deriving (Generic, Show)
+
+instance ToJSON TestCaseEntry
+instance FromJSON TestCaseEntry
 
 spitDump :: Config -> SimulationTask -> IO ()
 spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, stAsmFn, stGuid, stConfFn} = do

@@ -14,6 +14,7 @@ import Data.Text qualified as T
 import Relude
 import Relude.Extra
 import System.Random (StdGen, mkStdGen, uniformR)
+import System.Exit qualified as Exit
 import Text.Pretty.Simple
 import Wrench.Config
 import Wrench.Isa.Acc32 (Acc32State)
@@ -147,7 +148,7 @@ wrenchIO opts@Options{isa, onlyTranslation, statsFile = statsFilePath, showStats
             putStrLn $ prettyDump rLabels rDump
         wrenchError e = do
             putStrLn $ "error (" <> isa <> "): " <> toString e
-            exitFailure
+            Exit.exitWith (Exit.ExitFailure 2)
 
 wrench ::
     forall st isa_ w isa1 isa2.

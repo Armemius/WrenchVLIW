@@ -3,7 +3,9 @@
 module Main (main) where
 
 import Crypto.Hash.SHA1 qualified as SHA1
+import Data.Aeson (decodeStrict, encode)
 import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
 import Data.Text (isSuffixOf, replace)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime, nominalDiffTimeToSeconds)
@@ -18,7 +20,7 @@ import Relude
 import Servant
 import Servant.HTML.Lucid (HTML)
 import System.Directory (doesFileExist, listDirectory)
-import System.Exit (ExitCode (ExitSuccess))
+import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import System.FilePath (takeBaseName, takeFileName, (</>))
 import Wrench.Misc (wrenchVersion)
 import WrenchServ.Config
@@ -149,6 +151,25 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
         let header = "# " <> toText srConfigPath <> "\n"
         liftIO $ appendFileText testCaseStatsFn' $ header <> fromMaybe "stats not available\n" srStats <> "\n"
 
+    -- Persist structured test case data for the report view.
+    let testCaseEntries =
+            map
+                ( \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats, srTestCase, srExitCode} ->
+                    TestCaseEntry
+                        { tceName = toText srConfigPath
+                        , tceStatus = srTestCaseStatus
+                        , tceSuccess = srSuccess
+                        , tceStats = srStats
+                        , tceLog = srTestCase
+                        , tceExitCode = case srExitCode of
+                            ExitSuccess -> 0
+                            ExitFailure n -> n
+                        }
+                )
+                varChecks
+        testCaseEntriesPath = testCaseEntriesFn cStoragePath guid
+    liftIO $ writeFileBS testCaseEntriesPath (BL.toStrict $ encode testCaseEntries)
+
     endAt <- liftIO now
     track <- liftIO $ getTrack cookie
     posthogId <- liftIO $ getPosthogIdFromCookie cookie (track <> "_mp")
@@ -198,6 +219,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
     testCaseStatus <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_status.log"))
     testCaseResult <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_result.log"))
     testCaseStats <- liftIO (fromMaybe "" <$> maybeReadFile (testCaseStatsFn cStoragePath guid))
+    testCaseEntries <- liftIO $ parseTestCases (testCaseEntriesFn cStoragePath guid)
     reportWrenchVersion <- liftIO $ do
         exist <- doesFileExist (dir <> "/wrench-version.txt")
         if exist
@@ -217,6 +239,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{status}}", escapeHtml status)
                 , ("{{stats}}", escapeHtml stats)
                 , ("{{test_cases_status}}", escapeHtml testCaseStatus)
+                , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
                 ]
 
     let renderTemplate =
@@ -228,6 +251,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{result}}", formatCodeWithLineNumbers logContent)
                 , ("{{test_cases_result}}", formatCodeWithLineNumbers testCaseResult)
                 , ("{{test_cases_stats}}", formatCodeWithLineNumbers testCaseStats)
+                , ("{{test_cases_cards}}", testCaseCards testCaseEntries)
                 , ("{{dump}}", formatCodeWithLineNumbers dump)
                 ]
 
@@ -274,6 +298,68 @@ maybeReadFile path = do
 
 escapeHtml :: Text -> Text
 escapeHtml = toText . renderText . toHtml
+
+parseTestCases :: FilePath -> IO [TestCaseEntry]
+parseTestCases path = do
+    exists <- doesFileExist path
+    if not exists
+        then return []
+        else do
+            bytes <- readFileBS path
+            return $ fromMaybe [] (decodeStrict bytes)
+
+statusColor :: TestCaseEntry -> Text
+statusColor TestCaseEntry{tceExitCode, tceSuccess}
+    | tceExitCode == 0 && tceSuccess = "border border-green-500 text-green-500 dark:text-green-500"
+    | tceExitCode == 2 = "border border-yellow-500 text-yellow-500 dark:text-yellow-500"
+    | otherwise = "border border-red-500 text-red-500 dark:text-red-500"
+
+testCaseCards :: [TestCaseEntry] -> Text
+testCaseCards [] = "No test cases."
+testCaseCards entries =
+    T.intercalate
+        "\n"
+        ( zipWith
+            ( \idx TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode} ->
+                let target = "testcase-" <> show idx
+                    colorClass = statusColor TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode}
+                    badgeText =
+                        case tceExitCode of
+                            0 | tceSuccess -> "passed"
+                            2 -> "error"
+                            _ -> "failed"
+                    statsBlock =
+                        maybe
+                            ""
+                            (\s -> "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* stats */</h4><pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">" <> escapeHtml s <> "</pre>")
+                            tceStats
+                 in mconcat
+                        [ "<details class=\"bg-[var(--c-dark-grey)] mb-2 rounded-lg overflow-hidden\" id=\""
+                        , target
+                        , "\">"
+                        , "<summary class=\"flex justify-between items-center cursor-pointer px-4 py-2 hover:bg-[var(--c-grey)] hover:text-[var(--c-black)]\">"
+                        , "<span class=\"font-mono\">" <> escapeHtml tceName <> "</span>"
+                        , "<span class=\"px-2 py-1 ml-2 rounded "
+                        , colorClass
+                        , "\">"
+                        , badgeText
+                        , "</span>"
+                        , "</summary>"
+                        , "<div class=\"p-4 bg-[var(--c-black)]\">"
+                        , "<h4 class=\"text-[var(--c-grey)]\">/* status */</h4>"
+                        , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">" <> escapeHtml tceStatus <> "</pre>"
+                        , statsBlock
+                        , "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* report */</h4>"
+                        , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded overflow-x-auto\">"
+                        , escapeHtml tceLog
+                        , "</pre>"
+                        , "</div>"
+                        , "</details>"
+                        ]
+            )
+            [(1 :: Int) ..]
+            entries
+        )
 
 sha1 :: Text -> Text
 sha1 text =
