@@ -36,6 +36,7 @@ library
       Wrench.Machine.Types
       Wrench.Misc
       Wrench.Report
+      Wrench.Statistics
       Wrench.Translator
       Wrench.Translator.Parser
       Wrench.Translator.Parser.CodeSection
@@ -109,6 +110,7 @@ executable wrench
       Wrench.Machine.Types
       Wrench.Misc
       Wrench.Report
+      Wrench.Statistics
       Wrench.Translator
       Wrench.Translator.Parser
       Wrench.Translator.Parser.CodeSection

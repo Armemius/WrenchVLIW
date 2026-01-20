@@ -6,6 +6,7 @@
 module Wrench.Isa.F32a (
     Isa (..),
     F32aState,
+    stackDepths,
 ) where
 
 import Data.Bits (Bits (..), clearBit, complement, setBit, shiftL, shiftR, testBit, (.&.))
@@ -204,6 +205,10 @@ instance ByteSize (Isa w l) where
     byteSize _ = 1
 
 type F32aState w = MachineState (IoMem (Isa w w) w) w
+
+
+stackDepths :: F32aState w -> (Int, Int)
+stackDepths State{dataStack, returnStack} = (length dataStack, length returnStack)
 
 data MachineState mem w = State
     { p :: Int

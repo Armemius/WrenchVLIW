@@ -9,6 +9,7 @@ module Wrench.Isa.VliwIv (
     MachineState (..),
     VliwIvState,
     Register (..),
+    slotNopCount,
 ) where
 
 import Data.Bits (shiftL, shiftR, (.&.), (.|.))
@@ -360,6 +361,17 @@ cmd3args mnemonic constructor a b c =
 -- * Machine
 
 type VliwIvState w = MachineState (IoMem (Isa w w) w) w
+
+slotNopCount :: Isa w w -> (Int, Int)
+slotNopCount Isa{memOp, alu1Op, alu2Op, ctrlOp} =
+    let isMemNop NopM = True
+        isMemNop _ = False
+        isAluNop NopA = True
+        isAluNop _ = False
+        isCtrlNop NopC = True
+        isCtrlNop _ = False
+        slots = [isMemNop memOp, isAluNop alu1Op, isAluNop alu2Op, isCtrlNop ctrlOp]
+     in (length slots, length $ filter id slots)
 
 data MachineState mem w = State
     { pc :: Int

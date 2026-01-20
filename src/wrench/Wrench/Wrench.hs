@@ -24,6 +24,7 @@ import Wrench.Isa.VliwIv (VliwIvState)
 import Wrench.Machine
 import Wrench.Machine.Memory
 import Wrench.Machine.Types
+import Wrench.Statistics
 import Wrench.Report
 import Wrench.Translator
 import Wrench.Translator.Parser.Types
@@ -72,6 +73,7 @@ data Result mem w = Result
     , rLabels :: HashMap String w
     , rSuccess :: Bool
     , rDump :: mem
+    , rStats :: SimulationStats
     }
     deriving (Show)
 
@@ -113,6 +115,7 @@ wrenchIO ::
     , MachineWord w
     , MnemonicParser isa1
     , Show (isa_ w w)
+    , SimHook st isa2 w
     , StateInterspector st (IoMem isa2 w) isa2 w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
@@ -123,10 +126,11 @@ wrenchIO ::
     -> IO ()
 wrenchIO opts@Options{isa, onlyTranslation} conf@Config{} src =
     case wrench @st opts conf src of
-        Right Result{rLabels, rTrace, rSuccess, rDump} -> do
+        Right Result{rLabels, rTrace, rSuccess, rDump, rStats} -> do
             if onlyTranslation
                 then translationResult rLabels rDump
                 else do
+                    putText $ formatStats rStats
                     putText rTrace
                     if rSuccess then exitSuccess else exitFailure
         Left e -> wrenchError e
@@ -149,6 +153,7 @@ wrench ::
     , MachineWord w
     , MnemonicParser isa1
     , StateInterspector st (IoMem isa2 w) isa2 w
+    , SimHook st isa2 w
     , isa1 ~ isa_ w (Ref w)
     , isa2 ~ isa_ w w
     ) =>
@@ -157,7 +162,7 @@ wrench ::
     -> String
     -> Either Text (Result (IntMap (Cell isa2 w)) w)
 wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit, cMemoryMappedIoFlat, cReports, cSeed} src = do
-    trResult@TranslatorResult{dump, labels} <- translate cMemorySize fn src
+    trResult@TranslatorResult{dump, labels, sectionsInfo} <- translate cMemorySize fn src
 
     pc <- maybeToRight "_start label should be defined." (labels !? "_start")
     let mIoStreams = bimap (map int2mword) (map int2mword) <$> fromMaybe mempty cMemoryMappedIoFlat
@@ -166,6 +171,7 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
         st :: st = initState (fromEnum pc) ioDump randomStream
 
     traceLog <- powerOn cLimit maxStateLogLimit labels st
+    let stats = collectStats sectionsInfo traceLog
 
     let reports = maybe [] (map (prepareReport trResult verbose traceLog)) cReports
         isSuccess = all fst reports
@@ -177,6 +183,7 @@ wrench Options{input = fn, verbose, maxStateLogLimit} Config{cMemorySize, cLimit
             , rLabels = labels
             , rSuccess = isSuccess
             , rDump = dumpCells dump
+            , rStats = stats
             }
     where
         int2mword x
