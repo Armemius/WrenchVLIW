@@ -128,8 +128,9 @@ buildExecutionLog labels sourceMap traces = do
             case readInstruction (memoryDump st) (programCounter st) of
                 Right instr ->
                     let raw = T.toLower $ T.pack $ show instr
-                        name = T.takeWhile isAlpha raw
-                     in name == "halt"
+                        normalized = T.map (\c -> if isAlpha c then c else ' ') raw
+                        tokens = T.words normalized
+                     in "halt" `elem` tokens
                 Left _ -> False
 
         snapshot :: [(Int, Int)] -> st -> ExecState
