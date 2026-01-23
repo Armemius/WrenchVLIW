@@ -21,6 +21,9 @@
     <link rel="stylesheet" href="/assets/ascii.css" />
 
     {{tracker}}
+    <script id="variants-data" type="application/json">
+      {{variants_json}}
+    </script>
   </head>
 
   <body
@@ -31,6 +34,23 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         setupThemeToggle('invert-theme-button')
+
+        const variantsEl = document.getElementById('variants-data')
+        const variantSelect = document.getElementById('variant')
+        if (variantsEl && variantSelect) {
+          let variants = []
+          try {
+            variants = JSON.parse(variantsEl.textContent || '[]')
+          } catch (_e) {
+            variants = []
+          }
+          variants.forEach(v => {
+            const option = document.createElement('option')
+            option.value = v
+            option.textContent = v
+            variantSelect.appendChild(option)
+          })
+        }
       })
     </script>
     <div class="p-8 rounded-lg w-full max-w-[80vw]">
@@ -91,8 +111,6 @@
             class="block bg-[var(--c-dark-grey)] hover:opacity-80 mt-1 px-3 py-2 border border-zinc-400 focus:border-[var(--c-white)] rounded-md focus:outline-none w-full"
           >
             <option value="" selected disabled>Select a variant</option>
-            <!-- prettier-ignore -->
-            {{variants}}
           </select>
         </div>
 

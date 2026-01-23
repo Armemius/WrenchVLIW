@@ -28,20 +28,6 @@ import WrenchServ.Config
 import WrenchServ.Simulation
 import WrenchServ.Statistics
 
-formatCodeWithLineNumbers :: Text -> Text
-formatCodeWithLineNumbers code =
-    let codeLines = T.lines code
-        lineCount = length codeLines
-        lineNumbers = T.concat $ map (\i -> "<div class=\"line-number\">" <> show i <> "</div>") [1 .. lineCount]
-        codeContent = T.concat $ map (\line -> "<div class=\"code-line\">" <> escapeHtml line <> "</div>") codeLines
-        container =
-            "<div class=\"code-container\"><div class=\"line-numbers\">"
-                <> lineNumbers
-                <> "</div><div class=\"code-content\">"
-                <> codeContent
-                <> "</div></div>"
-     in container
-
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
@@ -78,13 +64,13 @@ type GetForm = Header "Cookie" Text :> Get '[HTML] (Html ())
 
 getForm :: Config -> Maybe Text -> Handler (Html ())
 getForm conf@Config{cVariants} cookie = do
-    let options = map (\v -> "<option value=\"" <> toText v <> "\">" <> toText v <> "</option>") cVariants
+    let variantsJson = decodeUtf8 $ BL.toStrict $ encode cVariants
     template <- liftIO (decodeUtf8 <$> readFileBS "static/form.html")
     let renderedTemplate =
             foldl'
                 (\st (pat, new) -> replace pat new st)
                 template
-                [ ("{{variants}}", mconcat options)
+                [ ("{{variants_json}}", variantsJson)
                 , ("{{version}}", wrenchVersion)
                 , ("{{tracker}}", postHogTracker)
                 ]
@@ -235,9 +221,6 @@ getReport conf@Config{cStoragePath} cookie guid = do
     isaContent <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/isa.txt"))
     stats <- liftIO (fromMaybe "" <$> maybeReadFile (statsFn cStoragePath guid))
     logExists <- liftIO $ doesFileExist (execLogFn cStoragePath guid)
-    testCaseStatus <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_status.log"))
-    testCaseResult <- liftIO (decodeUtf8 <$> readFileBS (dir <> "/test_cases_result.log"))
-    testCaseStats <- liftIO (fromMaybe "" <$> maybeReadFile (testCaseStatsFn cStoragePath guid))
     testCaseEntries <- liftIO $ parseTestCases (testCaseEntriesFn cStoragePath guid)
     reportWrenchVersion <- liftIO $ do
         exist <- doesFileExist (dir <> "/wrench-version.txt")
@@ -250,6 +233,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 then ""
                 else "Warning: report generated with wrench " <> reportWrenchVersion <> " but server is " <> wrenchVersion <> "."
         testCaseEntriesJson = decodeUtf8 $ BL.toStrict $ encode testCaseEntries
+        debugLink = if logExists then "/debug/" <> show guid else ""
 
     template <- liftIO (decodeUtf8 <$> readFileBS "static/result.html")
 
@@ -265,29 +249,15 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , ("{{comment}}", escapeHtml commentContent)
                 , ("{{status}}", escapeHtml status)
                 , ("{{stats}}", escapeHtml stats)
-                , ("{{test_cases_status}}", escapeHtml testCaseStatus)
-                , ("{{test_cases_cards}}", testCaseCards guid testCaseEntries)
+                , ("{{assembler_code}}", escapeHtml asmContent)
+                , ("{{yaml_content}}", escapeHtml configContent)
+                , ("{{result}}", escapeHtml logContent)
+                , ("{{dump}}", escapeHtml dump)
                 , ("{{version_warning}}", escapeHtml versionWarning)
                 , ("{{wrench_version}}", escapeHtml wrenchVersion)
                 , ("{{test_cases_json}}", testCaseEntriesJson)
-                , ( "{{debug_nav}}"
-                  , if logExists
-                        then "      <span class=\"hidden lg:inline text-[var(--c-grey)]\">|</span>\n      <a href=\"/debug/" <> show guid <> "\" class=\"hover:bg-[var(--c-yellow)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-yellow)] hover:text-[var(--c-black)] cursor-pointer\">[debug]</a>"
-                        else ""
-                  )
-                ]
-
-    let renderTemplate =
-            foldl'
-                (\st (pat, new) -> replace pat new st)
-                templateWithBasicContent
-                [ ("{{assembler_code}}", formatCodeWithLineNumbers asmContent)
-                , ("{{yaml_content}}", formatCodeWithLineNumbers configContent)
-                , ("{{result}}", formatCodeWithLineNumbers logContent)
-                , ("{{test_cases_result}}", formatCodeWithLineNumbers testCaseResult)
-                , ("{{test_cases_stats}}", formatCodeWithLineNumbers testCaseStats)
-                , ("{{test_cases_cards}}", testCaseCards guid testCaseEntries)
-                , ("{{dump}}", formatCodeWithLineNumbers dump)
+                , ("{{debug_link}}", debugLink)
+                , ("{{guid}}", show guid)
                 ]
 
     track <- liftIO $ getTrack cookie
@@ -302,7 +272,7 @@ getReport conf@Config{cStoragePath} cookie guid = do
                 , mpWrenchVersion = reportWrenchVersion
                 }
     liftIO $ trackEvent conf event
-    return $ addHeader (trackCookie track) $ toHtmlRaw renderTemplate
+    return $ addHeader (trackCookie track) $ toHtmlRaw templateWithBasicContent
 
 getDebug :: Config -> Maybe Text -> UUID -> Maybe Text -> Handler (Headers '[Header "Set-Cookie" Text] (Html ()))
 getDebug Config{cStoragePath} cookie guid mLogParam = do
@@ -384,71 +354,11 @@ parseTestCases path = do
             bytes <- readFileBS path
             return $ fromMaybe [] (decodeStrict bytes)
 
-statusColor :: TestCaseEntry -> Text
-statusColor TestCaseEntry{tceExitCode, tceSuccess}
-    | tceExitCode == 0 && tceSuccess = "border border-green-500 text-green-500 dark:text-green-500"
-    | tceExitCode == 2 = "border border-yellow-500 text-yellow-500 dark:text-yellow-500"
-    | otherwise = "border border-red-500 text-red-500 dark:text-red-500"
-
 execLogNameFromConf :: Text -> Text
 execLogNameFromConf confPath =
     let base = toText $ takeFileName $ toString confPath
         clean = T.map (\c -> if isAlphaNum c || c `elem` (".-_" :: String) then c else '_') base
      in "exec_log." <> (if T.null clean then "testcase" else clean) <> ".json"
-
-testCaseCards :: UUID -> [TestCaseEntry] -> Text
-testCaseCards _ [] = "No test cases."
-testCaseCards guid entries =
-    T.intercalate
-        "\n"
-        ( zipWith
-            ( \idx tc@TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode, tceDebugLog} ->
-                let target = "testcase-" <> show idx
-                    colorClass = statusColor tc
-                    badgeText =
-                        case tceExitCode of
-                            0 | tceSuccess -> "passed"
-                            2 -> "error"
-                            _ -> "failed"
-                    debugLink =
-                        fmap (\logName -> "/debug/" <> show guid <> "?log=" <> logName) tceDebugLog
-                    statsBlock =
-                        maybe
-                            ""
-                            ( \s ->
-                                "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* stats */</h4><pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">"
-                                    <> escapeHtml s
-                                    <> "</pre>"
-                            )
-                            tceStats
-                 in mconcat
-                        [ "<details class=\"bg-[var(--c-dark-grey)] mb-2 rounded-lg overflow-hidden\" id=\""
-                        , target
-                        , "\">"
-                        , "<summary class=\"flex justify-between items-center cursor-pointer px-4 py-2 hover:bg-[var(--c-grey)] hover:text-[var(--c-black)]\">"
-                        , "<span class=\"font-mono\">" <> escapeHtml tceName <> "</span>"
-                        , "<span class=\"px-2 py-1 ml-2 rounded "
-                        , colorClass
-                        , "\">"
-                        , badgeText
-                        , "</span>"
-                        , "</summary>"
-                        , "<div class=\"p-4 bg-[var(--c-black)]\">"
-                        , "<h4 class=\"text-[var(--c-grey)]\">/* status */</h4>"
-                        , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded\">" <> escapeHtml tceStatus <> "</pre>"
-                        , maybe "" (\link -> "<div class=\"mt-2 mb-2\"><a class=\"outline-link text-[var(--c-blue)]\" style=\"--link-color: var(--c-blue);\" href=\"" <> link <> "\">[debug]</a></div>") debugLink
-                        , statsBlock
-                        , "<h4 class=\"mt-2 text-[var(--c-grey)]\">/* report */</h4>"
-                        , "<pre class=\"bg-[var(--c-dark-grey)] p-3 rounded overflow-x-auto\">"
-                        , escapeHtml tceLog
-                        , "</pre>"
-                        , "</div>"
-                        , "</details>"
-                        ]
-            )
-            [(1 :: Int) ..]
-            entries
-        )
 
 sha1 :: Text -> Text
 sha1 text =

@@ -23,6 +23,7 @@
     <script defer type="module" src="/assets/utils.js"></script>
     <script defer type="module" src="/assets/submissions.js"></script>
     <script defer type="module" src="/assets/code-highlight.js"></script>
+    <script defer type="module" src="/assets/report.js"></script>
 
     <link rel="stylesheet" href="/assets/ascii.css" />
 
@@ -51,8 +52,11 @@
         renderSubmissions,
       } from '/assets/submissions.js'
       import { highlightReports } from '/assets/code-highlight.js'
+      import { renderReport } from '/assets/report.js'
 
       document.addEventListener('DOMContentLoaded', () => {
+        renderReport()
+
         setupCopyButton(
           'copy-assembler-code-button',
           'assembler-code-text-element',
@@ -175,7 +179,7 @@
 
     <div
       id="version-warning"
-      class="hidden w-full max-w-[75vw] mb-4 p-3 border border-yellow-500 text-[var(--c-yellow)] bg-[var(--c-black)]"
+      class="hidden w-full max-w-[75vw] mb-4 p-3 status-outline status-warning bg-[var(--c-black)]"
     >
       <span id="version-warning-text">{{version_warning}}</span>
     </div>
@@ -214,7 +218,7 @@
         class="hover:bg-[var(--c-green)] pt-[0.2ch] pb-[0.2ch] text-[var(--c-green)] hover:text-[var(--c-black)] cursor-pointer"
         >[my_submissions]</a
       >
-      {{debug_nav}}
+      <span id="debug-nav-container"></span>
       <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
       <button
         id="invert-theme-button"
@@ -404,7 +408,7 @@
         </div>
 
         <h2 class="mt-6 mb-4 text-[var(--c-grey)]">/* test_cases */</h2>
-        <div id="test-cases-cards">{{test_cases_cards}}</div>
+        <div id="test-cases-cards"></div>
         <div
           id="accordion-collapse-dump"
           data-accordion="collapse"
@@ -440,5 +444,7 @@
         </div>
       </div>
     </div>
+    <span id="debug-link" class="hidden">{{debug_link}}</span>
+    <span id="report-guid" class="hidden">{{guid}}</span>
   </body>
 </html>

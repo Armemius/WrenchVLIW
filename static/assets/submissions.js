@@ -3,13 +3,13 @@ const key = 'wrench_submissions'
 const colorClass = st => {
   switch (st) {
     case 'passed':
-      return 'border border-green-500 text-green-500'
+      return 'status-outline status-success'
     case 'error':
-      return 'border border-yellow-500 text-yellow-500'
+      return 'status-outline status-warning'
     case 'failed':
-      return 'border border-red-500 text-red-500'
+      return 'status-outline status-error'
     default:
-      return 'border border-slate-500 text-slate-500'
+      return 'status-outline status-neutral'
   }
 }
 

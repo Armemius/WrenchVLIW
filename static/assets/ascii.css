@@ -10,9 +10,14 @@
   --c-fuschia: #f50777;
   --c-blue: #0b8cff;
   --c-green: #00a76c;
+  --c-red: #c94343;
   --c-orange: #dd7200;
   --c-orange-low-saturation: #d08c47;
   --c-yellow: #949700;
+  --c-status-success: var(--c-green);
+  --c-status-warning: var(--c-yellow);
+  --c-status-error: var(--c-red);
+  --c-status-neutral: var(--c-grey);
 
   /* Functional variables */
   --selection-color: #000000;
@@ -30,9 +35,14 @@ body.dark {
   --c-fuschia: #ff45b4;
   --c-blue: #18b6ff;
   --c-green: #1beb9e;
+  --c-red: #ff6b6b;
   --c-orange: #ff9528;
   --c-orange-low-saturation: #a5692d;
   --c-yellow: #dddd25;
+  --c-status-success: var(--c-green);
+  --c-status-warning: var(--c-yellow);
+  --c-status-error: var(--c-red);
+  --c-status-neutral: var(--c-grey);
   --selection-color: #ffffff; /* Fixed selection text color for dark mode */
   --selection-bg: #4a4a4a; /* Adjusted selection background for better contrast */
 }
@@ -190,6 +200,27 @@ select > option {
   background: rgba(148, 151, 0, 0.15);
   border-radius: 2px;
   padding: 0 2px;
+}
+
+.status-outline {
+  border: 1px solid var(--status-color);
+  color: var(--status-color);
+}
+
+.status-success {
+  --status-color: var(--c-status-success);
+}
+
+.status-warning {
+  --status-color: var(--c-status-warning);
+}
+
+.status-error {
+  --status-color: var(--c-status-error);
+}
+
+.status-neutral {
+  --status-color: var(--c-status-neutral);
 }
 
 /* Syntax highlight accents */

@@ -42,7 +42,8 @@ export function handleEmptyContent(contentId, containerId, emptyIndicatorId) {
 
   if (!content || !container || !emptyIndicator) return
 
-  if (content.textContent.trim() === '') {
+  const raw = content.dataset.raw ?? content.textContent
+  if (raw.trim() === '') {
     container.classList.add('hidden')
     emptyIndicator.classList.remove('hidden')
   }
