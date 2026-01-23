@@ -1,3 +1,5 @@
+import { copyText } from '/assets/utils.js'
+
 const key = 'wrench_submissions'
 
 const colorClass = st => {
@@ -67,7 +69,7 @@ export const renderSubmissions = () => {
   listEl.querySelectorAll('.copy-submission').forEach(btn =>
     btn.addEventListener('click', () => {
       const link = btn.dataset.link
-      if (link) navigator.clipboard.writeText(link)
+      if (link) copyText(link)
     }),
   )
 

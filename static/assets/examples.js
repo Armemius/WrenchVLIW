@@ -1,3 +1,5 @@
+import { copyText } from '/assets/utils.js'
+
 const friendlyName = path => {
   if (!path) return ''
   const parts = path.split(/[\\/]/)
@@ -68,7 +70,7 @@ export async function renderExamples() {
     listEl.querySelectorAll('.copy-example').forEach(btn =>
       btn.addEventListener('click', () => {
         const link = btn.dataset.link
-        if (link) navigator.clipboard.writeText(link)
+        if (link) copyText(link)
       }),
     )
 

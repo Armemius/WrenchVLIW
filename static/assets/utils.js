@@ -1,3 +1,36 @@
+export async function copyText(text) {
+  const normalized = text ?? ''
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(normalized)
+      return true
+    } catch (_err) {
+      // Fall back to execCommand copy for non-secure contexts.
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = normalized
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '-1000px'
+  textarea.style.left = '-1000px'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch (_err) {
+    ok = false
+  }
+
+  document.body.removeChild(textarea)
+  return ok
+}
+
 export function setupCopyButton(buttonId, sourceElementId) {
   const button = document.getElementById(buttonId)
   const sourceElement = document.getElementById(sourceElementId)
@@ -5,17 +38,20 @@ export function setupCopyButton(buttonId, sourceElementId) {
   if (!button || !sourceElement) return
 
   button.addEventListener('click', async () => {
-    let text
+    let text = ''
 
     const codeContent = sourceElement.querySelector('.code-content')
     if (codeContent) {
       const lines = Array.from(codeContent.querySelectorAll('.code-line')).map(
         line => line.textContent,
       )
-      text = lines.join('')
+      text = lines.join('\n')
+    } else {
+      text = sourceElement.textContent ?? ''
     }
 
-    await navigator.clipboard.writeText(text)
+    const copied = await copyText(text)
+    if (!copied) return
 
     let count = parseInt(button.dataset.copyCount || '0', 10)
     count++
