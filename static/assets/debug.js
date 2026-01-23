@@ -521,7 +521,7 @@ const setupDebugger = () => {
     const step = idx > 0 ? steps[idx - 1] : null
     const highlightStep = idx === 0 ? steps[0] : step
     const mappedLine =
-      highlightStep?.seSource?.siLine ??
+      highlightStep?.seSource?.siLine + 1 ??
       (highlightStep ? pcToLine.get(highlightStep.sePc) : null) ??
       lastLine
     const regChanged = new Set(step?.seRegisters?.map(r => r.rcName) || [])

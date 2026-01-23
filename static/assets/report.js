@@ -61,9 +61,6 @@ const renderDebugNav = () => {
   if (!container || !link) return
 
   const sep = document.createElement('span')
-  sep.className = 'hidden lg:inline text-[var(--c-grey)]'
-  sep.textContent = '|'
-
   const anchor = document.createElement('a')
   anchor.href = link
   anchor.className =
@@ -130,13 +127,13 @@ const renderTestCaseCards = () => {
           <span class="px-2 py-1 ml-2 rounded ${colorClass}">${badgeText}</span>
         </summary>
         <div class="p-4 bg-[var(--c-black)]">
-          <h4 class="text-[var(--c-grey)]">/* status */</h4>
-          <pre class="bg-[var(--c-dark-grey)] p-3 rounded">${escapeHtml(entry.tceStatus)}</pre>
-          ${
+          <h4 class="text-[var(--c-grey)]">/* status */${
             debugLink
-              ? `<div class="mt-2 mb-2"><a class="outline-link text-[var(--c-blue)]" style="--link-color: var(--c-blue);" href="${debugLink}">[debug]</a></div>`
+              ? `<span class="mt-2 mb-2 ml-2"><a class="outline-link text-[var(--c-blue)]" style="--link-color: var(--c-blue);" href="${debugLink}">[debug]</a></span>`
               : ''
-          }
+          }</h4>
+          <pre class="bg-[var(--c-dark-grey)] p-3 rounded">${escapeHtml(entry.tceStatus)}</pre>
+          
           ${statsBlock}
           <h4 class="mt-2 text-[var(--c-grey)]">/* report */</h4>
           <pre class="bg-[var(--c-dark-grey)] p-3 rounded overflow-x-auto">${escapeHtml(entry.tceLog)}</pre>
@@ -149,15 +146,9 @@ const renderTestCaseCards = () => {
 }
 
 export const renderReport = () => {
-  buildCodeBlock(
-    document.getElementById('assembler-code-text-element'),
-  )
-  buildCodeBlock(
-    document.getElementById('simulation-config-text-element'),
-  )
-  buildCodeBlock(
-    document.getElementById('simulation-log-text-element'),
-  )
+  buildCodeBlock(document.getElementById('assembler-code-text-element'))
+  buildCodeBlock(document.getElementById('simulation-config-text-element'))
+  buildCodeBlock(document.getElementById('simulation-log-text-element'))
   buildCodeBlock(document.getElementById('dump-text-element'))
 
   renderDebugNav()
