@@ -22,6 +22,7 @@ const cloneState = st => ({
     Object.entries(st.esStacks || st.stacks || {}).map(([k, v]) => [k, [...v]]),
   ),
   memory: { ...(st.esMemory || st.memory || {}) },
+  memorySize: st.esMemorySize ?? st.memorySize ?? null,
   io: (() => {
     const raw = st.esIo || st.io || []
     const entries = Array.isArray(raw)
@@ -232,28 +233,54 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
     Number(addr),
     Number(v),
   ])
-  entries.sort((a, b) => a[0] - b[0])
-  const filtered = onlyChanged
-    ? entries.filter(([addr]) => changed.has(addr))
-    : entries
-  const byteMap = new Map(filtered.map(([addr, val]) => [addr, val]))
+  const memMap = new Map(entries)
+  const memorySize =
+    state.memorySize !== null && state.memorySize !== undefined
+      ? Number(state.memorySize)
+      : null
+  const sparse = memorySize !== null && !Number.isNaN(memorySize)
+  let blockAddrs = []
+  let shownBytes = 0
 
-  const blocks = new Map()
-  filtered.forEach(([addr, val]) => {
-    const base = Math.floor(addr / 4) * 4
-    const idx = addr - base
-    const row = blocks.get(base) || [undefined, undefined, undefined, undefined]
-    row[idx] = val
-    blocks.set(base, row)
-  })
+  if (sparse && !onlyChanged) {
+    const size = Math.max(0, memorySize)
+    const lastBase = size > 0 ? Math.floor((size - 1) / 4) * 4 : -1
+    for (let base = 0; base <= lastBase; base += 4) {
+      blockAddrs.push(base)
+    }
+    shownBytes = size
+  } else {
+    const displayAddrs = (onlyChanged
+      ? Array.from(changed)
+      : entries.map(([addr]) => addr)
+    ).sort((a, b) => a - b)
 
-  const blockAddrs = Array.from(blocks.keys()).sort((a, b) => a - b)
+    const blocks = new Set()
+    displayAddrs.forEach(addr => {
+      const base = Math.floor(addr / 4) * 4
+      blocks.add(base)
+    })
+
+    blockAddrs = Array.from(blocks.keys()).sort((a, b) => a - b)
+    shownBytes = displayAddrs.length
+  }
   const formatByte = v =>
     v === undefined || v === null
       ? '??'
       : Number(v).toString(16).toUpperCase().padStart(2, '0')
+  const getByte = addr => {
+    if (memMap.has(addr)) return memMap.get(addr)
+    if (!sparse) return undefined
+    if (addr < 0 || addr >= memorySize) return undefined
+    return 0
+  }
   const rows = blockAddrs.map(base => {
-    const bytes = blocks.get(base) || []
+    const bytes = [
+      getByte(base),
+      getByte(base + 1),
+      getByte(base + 2),
+      getByte(base + 3),
+    ]
     const byteCells = bytes.map((b, i) => {
       const addr = base + i
       const cls = changed.has(addr) ? 'changed' : ''
@@ -286,8 +313,10 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
 
   container.innerHTML =
     rows.join('') || '<div class="text-[var(--c-grey)]">memory empty</div>'
-  if (counter)
-    counter.textContent = `${filtered.length} bytes shown / ${entries.length} total`
+  if (counter) {
+    const total = sparse ? memorySize : entries.length
+    counter.textContent = `${shownBytes} bytes shown / ${total} total`
+  }
 
   // Scroll first changed row into view.
   const firstChanged = container.querySelector('.changed-row')

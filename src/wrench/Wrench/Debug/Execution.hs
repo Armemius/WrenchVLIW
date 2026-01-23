@@ -9,6 +9,7 @@ module Wrench.Debug.Execution (
 import Data.Aeson (ToJSON, encode)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashSet as HS
+import qualified Data.IntMap.Strict as IntMap
 import Data.Text qualified as T
 import Relude
 import Relude.Extra (toPairs, (!?))
@@ -27,6 +28,7 @@ data ExecState = ExecState
     { esPc :: !Int
     , esRegisters :: !(HashMap Text Integer)
     , esStacks :: !(HashMap Text [Integer])
+    , esMemorySize :: !Int
     , esMemory :: !(HashMap Int Word8)
     , esIo :: ![IoState]
     }
@@ -110,22 +112,25 @@ buildExecutionLog labels sourceMap traces = do
 
         snapshot :: st -> ExecState
         snapshot st =
-            ExecState
-                { esPc = programCounter st
-                , esRegisters = fmap toMachineInt (stateRegisters st)
-                , esStacks = fmap (map toMachineInt) (stateStacks st)
-                , esMemory = collectValues $ dumpCells $ memoryDump st
-                , esIo =
-                    map
-                        ( \(addr, (is, os)) ->
-                            IoState
-                                { iosAddr = addr
-                                , iosInput = map toMachineInt is
-                                , iosOutput = map toMachineInt os
-                                }
-                        )
-                        (toPairs $ ioStreams st)
-                }
+            let cells = dumpCells $ memoryDump st
+                memorySize = maybe 0 ((+ 1) . fst) (IntMap.lookupMax cells)
+             in ExecState
+                    { esPc = programCounter st
+                    , esRegisters = fmap toMachineInt (stateRegisters st)
+                    , esStacks = fmap (map toMachineInt) (stateStacks st)
+                    , esMemorySize = memorySize
+                    , esMemory = collectValues cells
+                    , esIo =
+                        map
+                            ( \(addr, (is, os)) ->
+                                IoState
+                                    { iosAddr = addr
+                                    , iosInput = map toMachineInt is
+                                    , iosOutput = map toMachineInt os
+                                    }
+                            )
+                            (toPairs $ ioStreams st)
+                    }
 
         mkStep :: Int -> (st, st) -> StepEntry
         mkStep idx (cur, nxt) =
@@ -215,7 +220,7 @@ buildExecutionLog labels sourceMap traces = do
                 . mapMaybe
                     ( \(addr, cell) ->
                         case cell of
-                            Value v -> Just (addr, v)
+                            Value v | v /= 0 -> Just (addr, v)
                             _ -> Nothing
                     )
                 . toPairs

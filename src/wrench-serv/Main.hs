@@ -402,9 +402,9 @@ testCaseCards guid entries =
     T.intercalate
         "\n"
         ( zipWith
-            ( \idx TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode, tceDebugLog} ->
+            ( \idx tc@TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode, tceDebugLog} ->
                 let target = "testcase-" <> show idx
-                    colorClass = statusColor TestCaseEntry{tceName, tceStatus, tceSuccess, tceStats, tceLog, tceExitCode}
+                    colorClass = statusColor tc
                     badgeText =
                         case tceExitCode of
                             0 | tceSuccess -> "passed"
