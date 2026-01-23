@@ -55,7 +55,6 @@ export async function renderExamples() {
               ${
                 report
                   ? `<div class="flex items-center gap-2">
-                       <button type="button" class="outline-link text-[var(--c-blue)] text-sm copy-example" style="--link-color: var(--c-blue);" data-link="${report}">[copy_link]</button>
                        <button type="button" class="outline-link text-[var(--c-green)] text-sm open-example" style="--link-color: var(--c-green);" data-link="${report}">[open]</button>
                      </div>`
                   : '<span class="text-[var(--c-grey)] text-sm">report missing</span>'

@@ -99,6 +99,10 @@ test-examples: build
 	stack exec wrench -- --isa m68k       example/m68k/factorial-recursive.s -c example/m68k/factorial-5.yaml
 	stack exec wrench -- --isa m68k       example/m68k/factorial-recursive-2.s -c example/m68k/factorial-5.yaml
 
+	stack exec wrench -- --isa vliw-iv    example/vliw-iv/hello.s           -c example/vliw-iv/hello.yaml
+	stack exec wrench -- --isa vliw-iv    example/vliw-iv/factorial.s       -c example/vliw-iv/factorial-5.yaml
+	stack exec wrench -- --isa vliw-iv    example/vliw-iv/test-parallel.s   -c example/vliw-iv/test-parallel.yaml
+
 test-serv: build generate-variants
 	stack exec wrench-serv &
 	hurl --retry 3 --no-output test/wrench-serv.hurl

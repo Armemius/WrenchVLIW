@@ -47,7 +47,6 @@ export const renderSubmissions = () => {
           ${
             e.link
               ? `<div class="flex items-center gap-2 mr-2">
-                   <button type="button" class="outline-link text-[var(--c-blue)] text-sm copy-submission" style="--link-color: var(--c-blue);" data-link="${e.link}">[copy_link]</button>
                    <button type="button" class="outline-link text-[var(--c-green)] text-sm open-submission" style="--link-color: var(--c-green);" data-link="${e.link}">[open]</button>
                  </div>`
               : ''
