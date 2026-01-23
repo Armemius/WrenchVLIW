@@ -50,7 +50,6 @@ export function handleEmptyContent(contentId, containerId, emptyIndicatorId) {
 
 export function setupThemeToggle(buttonId) {
   const button = document.getElementById(buttonId)
-  if (!button) return
 
   const updateTheme = () => {
     const isDark = document.body.classList.toggle('dark')
@@ -65,7 +64,9 @@ export function setupThemeToggle(buttonId) {
     document.body.classList.toggle('dark', systemDark)
   }
 
-  button.addEventListener('click', updateTheme)
+  if (button) {
+    button.addEventListener('click', updateTheme)
+  }
 }
 
 export function findIsaFlag(text) {
