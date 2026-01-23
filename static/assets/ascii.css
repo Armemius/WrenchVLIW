@@ -181,6 +181,17 @@ select > option {
   background: rgba(255, 230, 128, 0.06);
 }
 
+.program-row {
+  background: rgba(148, 151, 0, 0.08);
+}
+
+.program-cell {
+  color: var(--c-yellow);
+  background: rgba(148, 151, 0, 0.15);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
 /* Syntax highlight accents */
 .asm-comment,
 .yaml-comment {

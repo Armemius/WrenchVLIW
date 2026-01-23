@@ -29,6 +29,7 @@ data ExecState = ExecState
     , esRegisters :: !(HashMap Text Integer)
     , esStacks :: !(HashMap Text [Integer])
     , esMemorySize :: !Int
+    , esMemoryProgram :: ![(Int, Int)]
     , esMemory :: !(HashMap Int Word8)
     , esIo :: ![IoState]
     }
@@ -98,8 +99,10 @@ buildExecutionLog ::
     -> Maybe ExecutionLog
 buildExecutionLog labels sourceMap traces = do
     (initialState, _) <- uncons states
-    let initialSnapshot = snapshot initialState
-        steps = zipWith mkStep [0 ..] (zip states (drop 1 states))
+    let initialCells = dumpCells $ memoryDump initialState
+        programRanges = collectProgramRanges initialCells
+        initialSnapshot = snapshot programRanges initialState
+        steps = zipWith (mkStep programRanges) [0 ..] (zip states (drop 1 states))
     return
         ExecutionLog
             { elInitial = initialSnapshot
@@ -110,8 +113,8 @@ buildExecutionLog labels sourceMap traces = do
         pcLabels :: HashMap Int Text
         pcLabels = fromList $ map (\(l, a) -> (fromEnum a, toText l)) $ toPairs labels
 
-        snapshot :: st -> ExecState
-        snapshot st =
+        snapshot :: [(Int, Int)] -> st -> ExecState
+        snapshot programRanges st =
             let cells = dumpCells $ memoryDump st
                 memorySize = maybe 0 ((+ 1) . fst) (IntMap.lookupMax cells)
              in ExecState
@@ -119,6 +122,7 @@ buildExecutionLog labels sourceMap traces = do
                     , esRegisters = fmap toMachineInt (stateRegisters st)
                     , esStacks = fmap (map toMachineInt) (stateStacks st)
                     , esMemorySize = memorySize
+                    , esMemoryProgram = programRanges
                     , esMemory = collectValues cells
                     , esIo =
                         map
@@ -132,10 +136,10 @@ buildExecutionLog labels sourceMap traces = do
                             (toPairs $ ioStreams st)
                     }
 
-        mkStep :: Int -> (st, st) -> StepEntry
-        mkStep idx (cur, nxt) =
-            let curSnap = snapshot cur
-                nextSnap = snapshot nxt
+        mkStep :: [(Int, Int)] -> Int -> (st, st) -> StepEntry
+        mkStep programRanges idx (cur, nxt) =
+            let curSnap = snapshot programRanges cur
+                nextSnap = snapshot programRanges nxt
                 pc = esPc curSnap
                 instructionText =
                     case readInstruction (memoryDump cur) pc of
@@ -224,6 +228,23 @@ buildExecutionLog labels sourceMap traces = do
                             _ -> Nothing
                     )
                 . toPairs
+
+        collectProgramRanges :: IntMap (Cell isa w) -> [(Int, Int)]
+        collectProgramRanges cells =
+            let addrs =
+                    [ addr
+                    | (addr, cell) <- toPairs cells
+                    , isProgramCell cell
+                    ]
+             in reverse $ foldl' step [] addrs
+            where
+                isProgramCell Instruction{} = True
+                isProgramCell InstructionPart = True
+                isProgramCell _ = False
+                step [] addr = [(addr, addr)]
+                step ((start, end) : rest) addr
+                    | addr == end + 1 = (start, addr) : rest
+                    | otherwise = (addr, addr) : (start, end) : rest
 
         toMachineInt :: (Enum a) => a -> Integer
         toMachineInt = toInteger . fromEnum

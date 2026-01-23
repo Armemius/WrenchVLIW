@@ -23,6 +23,18 @@ const cloneState = st => ({
   ),
   memory: { ...(st.esMemory || st.memory || {}) },
   memorySize: st.esMemorySize ?? st.memorySize ?? null,
+  memoryProgram: (() => {
+    const raw = st.esMemoryProgram || st.memoryProgram || []
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map(range => [
+        Number(range?.[0] ?? range?.start ?? 0),
+        Number(range?.[1] ?? range?.end ?? 0),
+      ])
+      .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end))
+      .map(([start, end]) => (start <= end ? [start, end] : [end, start]))
+      .sort((a, b) => a[0] - b[0])
+  })(),
   io: (() => {
     const raw = st.esIo || st.io || []
     const entries = Array.isArray(raw)
@@ -239,6 +251,14 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
       ? Number(state.memorySize)
       : null
   const sparse = memorySize !== null && !Number.isNaN(memorySize)
+  const programRanges = state.memoryProgram || []
+  const isProgramAddr = addr => {
+    for (const [start, end] of programRanges) {
+      if (addr < start) return false
+      if (addr <= end) return true
+    }
+    return false
+  }
   let blockAddrs = []
   let shownBytes = 0
 
@@ -269,6 +289,7 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
       ? '??'
       : Number(v).toString(16).toUpperCase().padStart(2, '0')
   const getByte = addr => {
+    if (isProgramAddr(addr)) return undefined
     if (memMap.has(addr)) return memMap.get(addr)
     if (!sparse) return undefined
     if (addr < 0 || addr >= memorySize) return undefined
@@ -283,7 +304,10 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
     ]
     const byteCells = bytes.map((b, i) => {
       const addr = base + i
-      const cls = changed.has(addr) ? 'changed' : ''
+      const classes = []
+      if (changed.has(addr)) classes.push('changed')
+      if (isProgramAddr(addr)) classes.push('program-cell')
+      const cls = classes.join(' ')
       return `<span class="${cls} mr-1">${formatByte(b)}</span>`
     })
     // If any byte missing, skip summary to avoid wrong value.
@@ -304,7 +328,11 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
     const changedCls = bytes.some((_, i) => changed.has(base + i))
       ? 'changed-row'
       : ''
-    return `<div class="flex items-center justify-between gap-2 ${changedCls}" data-base="${base}">
+    const programCls = bytes.some((_, i) => isProgramAddr(base + i))
+      ? 'program-row'
+      : ''
+    const rowCls = [changedCls, programCls].filter(Boolean).join(' ')
+    return `<div class="flex items-center justify-between gap-2 ${rowCls}" data-base="${base}">
       <span class="text-[var(--c-grey)]">${addrLabel}</span>
       <div class="flex-1 flex items-center gap-1">${byteCells.join('')}</div>
       <span class="text-[var(--c-grey)]">${word}</span>
