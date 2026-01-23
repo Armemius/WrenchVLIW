@@ -8,6 +8,7 @@ import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun (defaultMainWithRerun)
 import Text.Pretty.Simple (pShowNoColor)
 import Wrench.Config
+import Wrench.Debug.Execution.Test qualified
 import Wrench.Isa.Acc32 (Acc32State)
 import Wrench.Isa.Acc32 qualified as Acc32
 import Wrench.Isa.F32a (F32aState)
@@ -25,7 +26,6 @@ import Wrench.Machine.Memory
 import Wrench.Machine.Memory.Test qualified
 import Wrench.Machine.Types
 import Wrench.Machine.Types.Test qualified
-import Wrench.Debug.Execution.Test qualified
 import Wrench.Report.Test qualified
 import Wrench.Translator
 import Wrench.Translator.Parser.Types
