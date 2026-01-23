@@ -198,9 +198,123 @@ const fmtVal = (v, mode) => {
   return '0x' + hex.padStart(Math.max(2, Math.ceil(hex.length / 2) * 2), '0')
 }
 
-const renderRegisters = (state, prevState, changed, mode, allRegs) => {
+const SPECIAL_REGS = {
+  TOS_D: '__TOS_D__',
+  TOS_R: '__TOS_R__',
+  EMPTY: '__EMPTY__',
+}
+
+const getRegisterLayout = isa => {
+  const key = (isa || '').toLowerCase()
+  if (key.includes('risc-iv') || key.includes('vliw-iv')) {
+    return [
+      ['A0', 'S0Fp'],
+      ['A1', 'S1'],
+      ['A2', 'S2'],
+      ['A3', 'S3'],
+      ['A4', 'S4'],
+      ['A5', 'S5'],
+      ['A6', 'S6'],
+      ['A7', 'S7'],
+      ['T0', 'S8'],
+      ['T1', 'S9'],
+      ['T2', 'S10'],
+      ['T3', 'S11'],
+      ['T4', 'Sp'],
+      ['T5', 'Ra'],
+      ['T6', 'Gp'],
+      ['Tp', 'Zero'],
+    ]
+  }
+  if (key.includes('m68k')) {
+    return [
+      ['A0', 'D0'],
+      ['A1', 'D1'],
+      ['A2', 'D2'],
+      ['A3', 'D3'],
+      ['A4', 'D4'],
+      ['A5', 'D5'],
+      ['A6', 'D6'],
+      ['A7', 'D7'],
+      ['N', 'Z'],
+      ['V', 'C'],
+    ]
+  }
+  if (key.includes('acc32')) {
+    return [
+      ['ACC', SPECIAL_REGS.EMPTY],
+      ['V', 'C'],
+    ]
+  }
+  if (key.includes('f32a')) {
+    return [
+      ['A', 'B'],
+      [SPECIAL_REGS.TOS_D, SPECIAL_REGS.TOS_R],
+    ]
+  }
+  return null
+}
+
+const getStackTop = (state, key) => {
+  const stack = state?.stacks?.[key] || []
+  return stack.length ? stack[0] : undefined
+}
+
+const renderRegisters = (state, prevState, changed, mode, allRegs, isa) => {
   const container = document.getElementById('dbg-registers')
   if (!container) return
+  const layout = getRegisterLayout(isa)
+  if (layout) {
+    const renderCell = (name, value, isChanged) => {
+      if (name === SPECIAL_REGS.EMPTY) {
+        return `<div></div>`
+      }
+      const label =
+        name === SPECIAL_REGS.TOS_D
+          ? 'TOS(D)'
+          : name === SPECIAL_REGS.TOS_R
+            ? 'TOS(R)'
+            : name
+      const cls = isChanged ? 'changed' : ''
+      const display = value === undefined ? '—' : fmtVal(Number(value), mode)
+      return `<div class="${cls}">${label}: ${display}</div>`
+    }
+
+    const rows = layout.flatMap(([left, right]) => {
+      const getVal = name => {
+        if (name === SPECIAL_REGS.TOS_D) return getStackTop(state, 'data')
+        if (name === SPECIAL_REGS.TOS_R) return getStackTop(state, 'return')
+        if (name === SPECIAL_REGS.EMPTY) return undefined
+        return state.registers?.[name]
+      }
+      const getPrev = name => {
+        if (name === SPECIAL_REGS.TOS_D) return getStackTop(prevState, 'data')
+        if (name === SPECIAL_REGS.TOS_R) return getStackTop(prevState, 'return')
+        if (name === SPECIAL_REGS.EMPTY) return undefined
+        return prevState?.registers?.[name]
+      }
+
+      const leftVal = getVal(left)
+      const rightVal = getVal(right)
+      const leftChanged =
+        left === SPECIAL_REGS.TOS_D || left === SPECIAL_REGS.TOS_R
+          ? leftVal !== getPrev(left)
+          : changed.has(left)
+      const rightChanged =
+        right === SPECIAL_REGS.TOS_D || right === SPECIAL_REGS.TOS_R
+          ? rightVal !== getPrev(right)
+          : changed.has(right)
+
+      return [
+        renderCell(left, leftVal, leftChanged),
+        renderCell(right, rightVal, rightChanged),
+      ]
+    })
+
+    container.innerHTML = rows.join('')
+    return
+  }
+
   const regs =
     allRegs && allRegs.size
       ? Array.from(allRegs)
@@ -270,9 +384,8 @@ const renderMemory = (state, changed, wordMode, onlyChanged) => {
     }
     shownBytes = size
   } else {
-    const displayAddrs = (onlyChanged
-      ? Array.from(changed)
-      : entries.map(([addr]) => addr)
+    const displayAddrs = (
+      onlyChanged ? Array.from(changed) : entries.map(([addr]) => addr)
     ).sort((a, b) => a - b)
 
     const blocks = new Set()
@@ -404,7 +517,10 @@ const renderIo = (state, step, mode) => {
       const outBody =
         mode === 'char'
           ? bytesToString([...output].reverse())
-          : [...output].reverse().map(v => fmtVal(Number(v), mode)).join(', ')
+          : [...output]
+              .reverse()
+              .map(v => fmtVal(Number(v), mode))
+              .join(', ')
       return `<div class="mb-2">
         <div class="text-[var(--c-grey)]">addr ${addr}</div>
         <div>in: ${fmtList(input, consumed)}</div>
@@ -534,7 +650,7 @@ const setupDebugger = () => {
     const memWordMode = memWordBaseEl?.value || 'hex'
 
     const prevState = idx > 0 ? states[idx - 1] : null
-    renderRegisters(state, prevState, regChanged, mode, allRegs)
+    renderRegisters(state, prevState, regChanged, mode, allRegs, isa)
     renderStacks(state, stackChanged, mode)
     renderMemory(state, memChanged, memWordMode, onlyChanged)
     renderIo(state, step, ioMode)

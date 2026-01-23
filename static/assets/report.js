@@ -41,6 +41,7 @@ const buildCodeBlock = (container, rawText) => {
     codeLine.className = 'code-line'
     codeLine.setAttribute('role', 'presentation')
     codeLine.dataset.line = String(idx + 1)
+    codeLine.dataset.raw = line
 
     const textSpan = document.createElement('span')
     textSpan.className = 'code-line-text'

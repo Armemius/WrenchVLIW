@@ -115,18 +115,27 @@ export function removeComments(code, commentStarter) {
   return cleanedCode
 }
 
-function hideComments(codeLines, commentStarter) {
+function hideComments(codeContainer, codeLines, commentStarter) {
+  if (codeContainer) {
+    codeContainer.classList.add('comments-hidden')
+  }
   codeLines.forEach(line => {
-    const originalText = line.textContent
-    line.textContent = removeComments(originalText, commentStarter)
+    const raw = line.dataset.raw ?? line.textContent ?? ''
+    line.dataset.cleaned = removeComments(raw, commentStarter)
+    const textEl = line.querySelector('.code-line-text')
+    if (textEl && !textEl.querySelector('.asm-comment')) {
+      textEl.textContent = line.dataset.cleaned
+    }
   })
 }
 
-function hideConsecutiveEmptyLines(codeLines, linesNumbers) {
+function hideConsecutiveEmptyLines(codeLines, linesNumbers, commentStarter) {
   let consecutiveEmptyLineCount = 0
 
   codeLines.forEach((line, index) => {
-    if (line.textContent.trim() === '') {
+    const raw = line.dataset.raw ?? line.textContent ?? ''
+    const cleaned = commentStarter ? removeComments(raw, commentStarter) : raw
+    if (cleaned.trim() === '') {
       consecutiveEmptyLineCount++
     } else {
       consecutiveEmptyLineCount = 0
@@ -157,8 +166,8 @@ export function setupHideCommentsButton(buttonId, containerId, isaType) {
     if (commentsAreHidden) {
       location.reload()
     } else {
-      hideComments(codeLines, commentSymbol)
-      hideConsecutiveEmptyLines(codeLines, linesNumbers)
+      hideComments(codeContainer, codeLines, commentSymbol)
+      hideConsecutiveEmptyLines(codeLines, linesNumbers, commentSymbol)
       toggleButton.dataset.hidden = 'true'
       toggleButton.textContent = '[show_comments]'
     }

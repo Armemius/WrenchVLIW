@@ -117,7 +117,7 @@ select > option {
   width: 100%;
   max-height: inherit;
   height: 100%;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
 }
 
@@ -200,6 +200,10 @@ select > option {
   background: rgba(148, 151, 0, 0.15);
   border-radius: 2px;
   padding: 0 2px;
+}
+
+.comments-hidden .asm-comment {
+  display: none;
 }
 
 .status-outline {
