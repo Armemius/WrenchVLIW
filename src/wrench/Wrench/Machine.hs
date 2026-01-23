@@ -69,9 +69,7 @@ simulate' = do
                 tellState machineState
                 simulateInstructionStep
                 simulate'
-            Left err | err == halted -> do
-                tellState machineState
-                return ()
+            Left err | err == halted -> return ()
             Left err -> tellError err
 
 powerOn ::

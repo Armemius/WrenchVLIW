@@ -8,6 +8,7 @@ module Wrench.Debug.Execution (
 
 import Data.Aeson (ToJSON, encode)
 import Data.ByteString.Lazy qualified as BL
+import Data.Char (isAlpha)
 import Data.HashSet qualified as HS
 import Data.IntMap.Strict qualified as IntMap
 import Data.Text qualified as T
@@ -109,9 +110,27 @@ buildExecutionLog labels sourceMap traces = do
             , elSteps = steps
             }
     where
-        states = [st | TState st <- traces]
+        states = maybeAppendHaltState [st | TState st <- traces]
         pcLabels :: HashMap Int Text
         pcLabels = fromList $ map (\(l, a) -> (fromEnum a, toText l)) $ toPairs labels
+
+        maybeAppendHaltState :: [st] -> [st]
+        maybeAppendHaltState sts =
+            case viaNonEmpty last sts of
+                Nothing -> sts
+                Just st ->
+                    if isHaltInstruction st
+                        then sts <> [st]
+                        else sts
+
+        isHaltInstruction :: st -> Bool
+        isHaltInstruction st =
+            case readInstruction (memoryDump st) (programCounter st) of
+                Right instr ->
+                    let raw = T.toLower $ T.pack $ show instr
+                        name = T.takeWhile isAlpha raw
+                     in name == "halt"
+                Left _ -> False
 
         snapshot :: [(Int, Int)] -> st -> ExecState
         snapshot programRanges st =
