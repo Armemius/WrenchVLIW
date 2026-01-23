@@ -495,7 +495,10 @@ const renderIo = (state, step, mode) => {
     .map(([addr, { input = [], output = [] }]) => {
       const consumed = consumedMap.get(addr) || []
       const produced = producedMap.get(addr) || []
+      const emptyMarker =
+        '<span class="text-[var(--c-grey)] italic">*Empty*</span>'
       const fmtList = (xs, extra = []) => {
+        if (!xs.length && !extra.length) return emptyMarker
         if (mode === 'char') {
           const base = bytesToString(xs)
           const extraStr = extra.length ? bytesToString(extra) : ''
@@ -515,16 +518,18 @@ const renderIo = (state, step, mode) => {
             ? `<span class="changed">(+${produced.map(v => fmtVal(Number(v), mode)).join(', ')})</span>`
             : ''
       const outBody =
-        mode === 'char'
-          ? bytesToString([...output].reverse())
-          : [...output]
-              .reverse()
-              .map(v => fmtVal(Number(v), mode))
-              .join(', ')
+        output.length
+          ? mode === 'char'
+            ? bytesToString([...output].reverse())
+            : [...output]
+                .reverse()
+                .map(v => fmtVal(Number(v), mode))
+                .join(', ')
+          : ''
       return `<div class="mb-2">
-        <div class="text-[var(--c-grey)]">addr ${addr}</div>
+        <div class="text-[var(--c-grey)]">addr 0x${addr.toString(16)}</div>
         <div>in: ${fmtList(input, consumed)}</div>
-        <div>out: ${outBody} ${producedFmt}</div>
+        <div>out: ${outBody || (!produced.length ? emptyMarker : '')} ${producedFmt}</div>
       </div>`
     })
     .join('')
@@ -699,6 +704,10 @@ const setupDebugger = () => {
     if (playing) {
       stop()
     } else {
+      if (idx >= states.length - 1) {
+        idx = 0
+        render()
+      }
       playing = true
       document.getElementById('dbg-play').textContent = 'pause'
       schedule()

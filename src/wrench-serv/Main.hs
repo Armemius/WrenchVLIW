@@ -281,10 +281,11 @@ getDebug Config{cStoragePath} cookie guid mLogParam = do
         logPath = dir </> logName
 
     asmContent <- liftIO (fromMaybe "" <$> maybeReadFile (dir </> "source.s"))
-    variantContent <- liftIO (fromMaybe "-" <$> maybeReadFile (dir </> "variant.txt"))
+    variantContentRaw <- liftIO (fromMaybe "-" <$> maybeReadFile (dir </> "variant.txt"))
     isaContent <- liftIO (fromMaybe "unknown" <$> maybeReadFile (dir </> "isa.txt"))
     nameContent <- liftIO (fromMaybe "" <$> maybeReadFile (dir </> "name.txt"))
     execLogContent <- liftIO (maybeReadFile logPath)
+    let variantContent = if T.strip variantContentRaw == "" then "-" else variantContentRaw
 
     template <- liftIO (decodeUtf8 <$> readFileBS "static/debug.html")
 
