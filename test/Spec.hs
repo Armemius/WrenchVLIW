@@ -25,6 +25,7 @@ import Wrench.Machine.Memory
 import Wrench.Machine.Memory.Test qualified
 import Wrench.Machine.Types
 import Wrench.Machine.Types.Test qualified
+import Wrench.Debug.Execution.Test qualified
 import Wrench.Report.Test qualified
 import Wrench.Translator
 import Wrench.Translator.Parser.Types
@@ -47,6 +48,7 @@ tests =
             , goldenConfig "test/golden/config/smoke.yaml"
             ]
         , testGroup "Report" [Wrench.Report.Test.tests]
+        , testGroup "Debug" [Wrench.Debug.Execution.Test.tests]
         , Wrench.Machine.Types.Test.tests
         , Wrench.Machine.Memory.Test.tests
         , testGroup
