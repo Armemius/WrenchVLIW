@@ -25,12 +25,12 @@ debug_link: xpath "normalize-space(//span[@id='debug-link'])"
 header "Set-Cookie" startsWith "track_id={{track_id}}"
 xpath "normalize-space(//head/title)" startsWith "Simulation Results"
 xpath "normalize-space(//span[@id='debug-link'])" startsWith "/debug/"
-xpath "normalize-space(//div[@id='simulation-config-text-element'])" contains "limit: 100, memory_size: 128"
+xpath "normalize-space(//pre[@id='simulation-config-text-element'])" contains "limit: 100, memory_size: 128"
 xpath "normalize-space(//pre[@id='status-text-element'])" contains "ExitSuccess"
-xpath "normalize-space(//div[@id='simulation-log-text-element'])" contains "Executed Instruction"
-xpath "normalize-space(//div[@id='simulation-log-text-element'])" contains "Halt @_start"
-xpath "normalize-space(//div[@id='dump-text-element'])" contains "_start"
-xpath "normalize-space(//div[@id='dump-text-element'])" contains "mem[0..0]: Halt"
+xpath "normalize-space(//pre[@id='simulation-log-text-element'])" contains "Executed Instruction"
+xpath "normalize-space(//pre[@id='simulation-log-text-element'])" contains "Halt @_start"
+xpath "normalize-space(//pre[@id='dump-text-element'])" contains "_start"
+xpath "normalize-space(//pre[@id='dump-text-element'])" contains "mem[0..0]: Halt"
 
 GET http://localhost:8080{{debug_link}}
 HTTP/1.1 200
