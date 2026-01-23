@@ -540,7 +540,7 @@ const setupDebugger = () => {
     renderIo(state, step, ioMode)
 
     if (infoEl)
-      infoEl.textContent = `step ${idx}/${states.length - 1} | pc ${state.pc}`
+      infoEl.textContent = `step ${idx}/${states.length - 1} | pc 0x${state.pc.toString(16)}`
     if (instrEl) {
       const instrText = step?.seInstruction || ''
       const label = step?.seLabel ? `@${step.seLabel}` : ''

@@ -19,8 +19,12 @@
     <link rel="stylesheet" href="/assets/ascii.css" />
   </head>
 
-  <body class="flex flex-col items-center bg-[var(--c-black)] min-h-screen text-[var(--c-white)] dark full">
-    <div class="mt-4 mb-4 w-full text-center flex flex-wrap items-center justify-center gap-3">
+  <body
+    class="flex flex-col items-center bg-[var(--c-black)] min-h-screen text-[var(--c-white)] dark full"
+  >
+    <div
+      class="mt-4 mb-4 w-full text-center flex flex-wrap items-center justify-center gap-3"
+    >
       <a
         class="hover:bg-[var(--c-white)] text-[var(--c-white)] hover:text-[var(--c-black)] text-4xl cursor-pointer"
         href="{{back_link}}"
@@ -28,42 +32,75 @@
       >
     </div>
 
-    <div class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw] mb-4">
-      <span class="text-[var(--c-grey)]">debug view for {{name}} ({{variant}} / {{isa}})</span>
+    <div
+      class="flex flex-wrap justify-center self-center gap-2 max-w-[75vw] mb-4"
+    >
+      <span class="text-[var(--c-grey)]"
+        >debug view for {{name}} ({{variant}} / {{isa}})</span
+      >
       <span class="hidden lg:inline text-[var(--c-grey)]">|</span>
       <span class="text-[var(--c-grey)]">log: {{log_file}}</span>
     </div>
 
-    <div id="debug-error" class="hidden text-[var(--c-orange)] mb-4">Execution log not found or invalid.</div>
+    <div id="debug-error" class="hidden text-[var(--c-orange)] mb-4">
+      Execution log not found or invalid.
+    </div>
 
     <div class="w-full max-w-[1200px] px-4 pb-12" id="debug-root">
       <div class="flex flex-wrap gap-4 items-center mb-4">
         <div class="flex gap-2 items-center">
-          <button id="dbg-reset" class="outline-link text-[var(--c-blue)]" style="--link-color: var(--c-blue);">reset</button>
-          <button id="dbg-prev" class="outline-link text-[var(--c-purple)]" style="--link-color: var(--c-purple);">&lt; prev</button>
-          <button id="dbg-next" class="outline-link text-[var(--c-purple)]" style="--link-color: var(--c-purple);">next &gt;</button>
-          <button id="dbg-play" class="outline-link text-[var(--c-green)]" style="--link-color: var(--c-green);">play</button>
+          <button
+            id="dbg-reset"
+            class="outline-link text-[var(--c-blue)]"
+            style="--link-color: var(--c-blue)"
+          >
+            reset
+          </button>
+          <button
+            id="dbg-prev"
+            class="outline-link text-[var(--c-purple)]"
+            style="--link-color: var(--c-purple)"
+          >
+            &lt; prev
+          </button>
+          <button
+            id="dbg-next"
+            class="outline-link text-[var(--c-purple)]"
+            style="--link-color: var(--c-purple)"
+          >
+            next &gt;
+          </button>
+          <button
+            id="dbg-play"
+            class="outline-link text-[var(--c-green)]"
+            style="--link-color: var(--c-green)"
+          >
+            play
+          </button>
         </div>
         <div class="flex gap-2 items-center">
-          <label for="dbg-speed" class="text-[var(--c-grey)] text-sm">speed</label>
-          <input id="dbg-speed" type="range" min="0.25" max="10" step="0.25" value="1" />
-          <span id="dbg-speed-label" class="text-[var(--c-grey)] text-sm">1.0x</span>
+          <label for="dbg-speed" class="text-[var(--c-grey)] text-sm"
+            >speed</label
+          >
+          <input
+            id="dbg-speed"
+            type="range"
+            min="0.25"
+            max="10"
+            step="0.25"
+            value="1"
+          />
+          <span id="dbg-speed-label" class="text-[var(--c-grey)] text-sm"
+            >1.0x</span
+          >
         </div>
         <div class="flex gap-2 items-center">
-          <label for="dbg-value-base" class="text-[var(--c-grey)] text-sm">numbers</label>
-          <select id="dbg-value-base" class="bg-[var(--c-dark-grey)] text-sm w-12">
-            <option value="hex">hex</option>
-            <option value="dec">dec</option>
-            <option value="char">char</option>
-          </select>
-          <label for="dbg-io-base" class="text-[var(--c-grey)] text-sm">io</label>
-          <select id="dbg-io-base" class="bg-[var(--c-dark-grey)] text-sm w-12">
-            <option value="dec">dec</option>
-            <option value="hex">hex</option>
-            <option value="char">char</option>
-          </select>
           <label class="flex items-center gap-1 text-[var(--c-grey)] text-sm">
-            <input id="dbg-memory-changed-only" type="checkbox" class="bg-[var(--c-dark-grey)]" />
+            <input
+              id="dbg-memory-changed-only"
+              type="checkbox"
+              class="bg-[var(--c-dark-grey)]"
+            />
             only changed memory
           </label>
         </div>
@@ -72,18 +109,46 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
         <div class="flex flex-col gap-4">
-          <div class="bg-[var(--c-dark-grey)] p-4 rounded flex flex-col max-h-[60vh] min-h-0 h-[60vh]">
+          <div
+            class="bg-[var(--c-dark-grey)] p-4 rounded flex flex-col max-h-[60vh] min-h-0 h-[60vh]"
+          >
             <h3 class="text-[var(--c-grey)] mb-2">Code</h3>
-            <div id="assembler-code-text-element" class="code-container flex-1 min-h-0 h-full"></div>
-            <div id="dbg-instruction" class="text-[var(--c-grey)] text-xs mt-2"></div>
+            <div
+              id="assembler-code-text-element"
+              class="code-container flex-1 min-h-0 h-full"
+            ></div>
+            <div
+              id="dbg-instruction"
+              class="text-[var(--c-grey)] text-xs mt-2"
+            ></div>
           </div>
           <div class="bg-[var(--c-dark-grey)] p-4 rounded">
-            <h3 class="text-[var(--c-grey)] mb-2">IO</h3>
+            <div class="flex items-center gap-2 mb-2">
+              <h3 class="text-[var(--c-grey)]">IO</h3>
+              <select
+                id="dbg-io-base"
+                class="bg-[var(--c-dark-grey)] text-xs w-12"
+              >
+                <option value="dec">dec</option>
+                <option value="hex">hex</option>
+                <option value="char">char</option>
+              </select>
+            </div>
             <div id="dbg-io" class="text-sm"></div>
           </div>
         </div>
         <div class="bg-[var(--c-dark-grey)] p-4 rounded">
-          <h3 class="text-[var(--c-grey)] mb-2">Registers</h3>
+          <div class="flex items-center gap-2 mb-2">
+            <h3 class="text-[var(--c-grey)]">Registers</h3>
+            <select
+              id="dbg-value-base"
+              class="bg-[var(--c-dark-grey)] text-xs w-12"
+            >
+              <option value="hex">hex</option>
+              <option value="dec">dec</option>
+              <option value="char">char</option>
+            </select>
+          </div>
           <div id="dbg-registers" class="grid grid-cols-2 gap-1"></div>
           <h4 class="text-[var(--c-grey)] mt-3 mb-1">Stacks</h4>
           <div id="dbg-stacks" class="text-sm text-[var(--c-white)]"></div>
@@ -91,23 +156,40 @@
             <div class="flex justify-between items-center mb-2 gap-3">
               <div class="flex items-center gap-2">
                 <h3 class="text-[var(--c-grey)]">Memory</h3>
-                <label for="dbg-memory-word-base" class="text-[var(--c-grey)] text-xs">word</label>
-                <select id="dbg-memory-word-base" class="bg-[var(--c-dark-grey)] text-xs">
+                <label
+                  for="dbg-memory-word-base"
+                  class="text-[var(--c-grey)] text-xs"
+                  >word</label
+                >
+                <select
+                  id="dbg-memory-word-base"
+                  class="bg-[var(--c-dark-grey)] text-xs"
+                >
                   <option value="hex">hex</option>
                   <option value="dec">dec</option>
                   <option value="char">char</option>
                 </select>
               </div>
-              <span id="dbg-memory-count" class="text-[var(--c-grey)] text-xs"></span>
+              <span
+                id="dbg-memory-count"
+                class="text-[var(--c-grey)] text-xs"
+              ></span>
             </div>
-            <div id="dbg-memory" class="text-sm overflow-y-auto max-h-[360px] px-4"></div>
+            <div
+              id="dbg-memory"
+              class="text-sm overflow-y-auto max-h-[360px] px-4"
+            ></div>
           </div>
         </div>
       </div>
     </div>
 
-    <script id="exec-log-data" type="application/json">{{exec_log}}</script>
-    <script id="asm-data" type="text/plain">{{asm_raw}}</script>
+    <script id="exec-log-data" type="application/json">
+      {{exec_log}}
+    </script>
+    <script id="asm-data" type="text/plain">
+      {{asm_raw}}
+    </script>
     <span id="dbg-isa" class="hidden">{{isa}}</span>
     <script type="module">
       import { setupThemeToggle } from '/assets/utils.js'
