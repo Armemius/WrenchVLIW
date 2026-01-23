@@ -15,7 +15,7 @@ module WrenchServ.Simulation (
 ) where
 
 import Control.Exception (catch)
-import Data.Aeson (FromJSON (..), ToJSON, (.:), (.:?), withObject)
+import Data.Aeson (FromJSON (..), ToJSON, withObject, (.:), (.:?))
 import Data.Char (isAlphaNum)
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
@@ -23,8 +23,8 @@ import Data.UUID (UUID)
 import Relude
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.Exit (ExitCode (ExitSuccess))
-import System.IO (hClose, openTempFile)
 import System.FilePath (takeDirectory, takeFileName)
+import System.IO (hClose, openTempFile)
 import System.Process (readProcessWithExitCode)
 import Web.FormUrlEncoded (FromForm)
 import Wrench.Misc (wrenchVersion)
@@ -60,6 +60,7 @@ asmFn path guid = path <> "/" <> show guid <> "/source.s"
 wrenchVersionFn path guid = path <> "/" <> show guid <> "/wrench-version.txt"
 dumpFn path guid = path <> "/" <> show guid <> "/dump.txt"
 statsFn path guid = path <> "/" <> show guid <> "/stats.log"
+
 execLogTestCaseFn :: FilePath -> UUID -> FilePath -> FilePath
 execLogTestCaseFn path guid confPath =
     let base = takeFileName confPath
@@ -67,8 +68,10 @@ execLogTestCaseFn path guid confPath =
         cleaned = map sanitize base
         namePart = if null cleaned then "testcase" else cleaned
      in path <> "/" <> show guid <> "/exec_log." <> namePart <> ".json"
+
 execLogFn :: FilePath -> UUID -> FilePath
 execLogFn path guid = path <> "/" <> show guid <> "/exec_log.json"
+
 testCaseStatsFn path guid = path <> "/" <> show guid <> "/test_cases_stats.log"
 
 testCaseEntriesFn :: FilePath -> UUID -> FilePath
@@ -128,13 +131,20 @@ instance ToJSON TestCaseEntry
 instance FromJSON TestCaseEntry where
     parseJSON = withObject "TestCaseEntry" $ \o ->
         TestCaseEntry
-            <$> o .: "tceName"
-            <*> o .: "tceStatus"
-            <*> o .: "tceSuccess"
-            <*> o .:? "tceStats"
-            <*> o .: "tceLog"
-            <*> o .: "tceExitCode"
-            <*> o .:? "tceDebugLog"
+            <$> o
+            .: "tceName"
+            <*> o
+            .: "tceStatus"
+            <*> o
+            .: "tceSuccess"
+            <*> o
+            .:? "tceStats"
+            <*> o
+            .: "tceLog"
+            <*> o
+            .: "tceExitCode"
+            <*> o
+            .:? "tceDebugLog"
 
 spitDump :: Config -> SimulationTask -> IO ()
 spitDump Config{cStoragePath, cWrenchPath, cWrenchArgs} SimulationTask{stIsa, stAsmFn, stGuid, stConfFn} = do

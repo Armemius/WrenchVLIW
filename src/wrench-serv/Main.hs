@@ -149,8 +149,9 @@ submitForm conf@Config{cStoragePath, cVariantsPath} cookie task@SimulationReques
 
     -- Persist structured test case data for the report view.
     testCaseEntries <-
-        liftIO $
-            forM varChecks $ \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats = srStatsCase, srTestCase, srExitCode} ->
+        liftIO
+            $ forM varChecks
+            $ \SimulationResult{srConfigPath, srTestCaseStatus, srSuccess, srStats = srStatsCase, srTestCase, srExitCode} ->
                 let logName = execLogNameFromConf (toText srConfigPath)
                  in return
                         TestCaseEntry

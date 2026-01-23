@@ -7,9 +7,9 @@ module Wrench.Debug.Execution (
 ) where
 
 import Data.Aeson (ToJSON, encode)
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.HashSet as HS
-import qualified Data.IntMap.Strict as IntMap
+import Data.ByteString.Lazy qualified as BL
+import Data.HashSet qualified as HS
+import Data.IntMap.Strict qualified as IntMap
 import Data.Text qualified as T
 import Relude
 import Relude.Extra (toPairs, (!?))
@@ -22,7 +22,7 @@ data IoState = IoState
     , iosInput :: ![Integer]
     , iosOutput :: ![Integer]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data ExecState = ExecState
     { esPc :: !Int
@@ -33,35 +33,35 @@ data ExecState = ExecState
     , esMemory :: !(HashMap Int Word8)
     , esIo :: ![IoState]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data RegChange = RegChange
     { rcName :: !Text
     , rcBefore :: !Integer
     , rcAfter :: !Integer
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data StackChange = StackChange
     { scName :: !Text
     , scBefore :: ![Integer]
     , scAfter :: ![Integer]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data MemChange = MemChange
     { mcAddr :: !Int
     , mcBefore :: !(Maybe Word8)
     , mcAfter :: !(Maybe Word8)
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data IoChange = IoChange
     { icAddr :: !Int
     , icConsumed :: ![Integer]
     , icProduced :: ![Integer]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data StepEntry = StepEntry
     { seIndex :: !Int
@@ -75,13 +75,13 @@ data StepEntry = StepEntry
     , seMemory :: ![MemChange]
     , seIo :: ![IoChange]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data ExecutionLog = ExecutionLog
     { elInitial :: !ExecState
     , elSteps :: ![StepEntry]
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 writeExecutionLog :: FilePath -> ExecutionLog -> IO ()
 writeExecutionLog path = BL.writeFile path . encode
@@ -89,8 +89,8 @@ writeExecutionLog path = BL.writeFile path . encode
 buildExecutionLog ::
     forall st m isa w.
     ( MachineWord w
-    , Show isa
     , Memory m isa w
+    , Show isa
     , StateInterspector st m isa w
     ) =>
     HashMap String w
@@ -177,8 +177,8 @@ buildExecutionLog labels sourceMap traces = do
             let curMap = getter curSnap
                 nextMap = getter nextSnap
                 allKeys =
-                    HS.toList $
-                        HS.fromList (map fst (toPairs curMap) <> map fst (toPairs nextMap))
+                    HS.toList
+                        $ HS.fromList (map fst (toPairs curMap) <> map fst (toPairs nextMap))
              in mapMaybe
                     ( \k -> do
                         before <- curMap !? k

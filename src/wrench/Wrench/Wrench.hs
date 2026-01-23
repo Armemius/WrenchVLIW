@@ -124,8 +124,8 @@ wrenchIO ::
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
-    , Memory (IoMem isa2 w) isa2 w
     , MachineWord w
+    , Memory (IoMem isa2 w) isa2 w
     , MnemonicParser isa1
     , Show (isa_ w w)
     , SimHook st isa2 w
@@ -169,8 +169,8 @@ wrench ::
     , DerefMnemonic (isa_ w) w
     , InitState (IoMem isa2 w) st
     , Machine st isa2 w
-    , Memory (IoMem isa2 w) isa2 w
     , MachineWord w
+    , Memory (IoMem isa2 w) isa2 w
     , MnemonicParser isa1
     , Show (isa_ w w)
     , SimHook st isa2 w

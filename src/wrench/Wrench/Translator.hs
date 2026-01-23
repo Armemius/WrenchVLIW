@@ -7,7 +7,6 @@ module Wrench.Translator (
 
 import Relude
 import Relude.Extra
-import Prelude qualified as P
 import Text.Megaparsec (parse)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Wrench.Machine.Memory
@@ -15,6 +14,7 @@ import Wrench.Machine.Types
 import Wrench.Translator.Parser
 import Wrench.Translator.Parser.Types
 import Wrench.Translator.Types
+import Prelude qualified as P
 
 data TranslatorResult mem w = TranslatorResult
     { dump :: !mem

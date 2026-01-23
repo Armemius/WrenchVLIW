@@ -517,15 +517,14 @@ const renderIo = (state, step, mode) => {
           : produced.length
             ? `<span class="changed">(+${produced.map(v => fmtVal(Number(v), mode)).join(', ')})</span>`
             : ''
-      const outBody =
-        output.length
-          ? mode === 'char'
-            ? bytesToString([...output].reverse())
-            : [...output]
-                .reverse()
-                .map(v => fmtVal(Number(v), mode))
-                .join(', ')
-          : ''
+      const outBody = output.length
+        ? mode === 'char'
+          ? bytesToString([...output].reverse())
+          : [...output]
+              .reverse()
+              .map(v => fmtVal(Number(v), mode))
+              .join(', ')
+        : ''
       return `<div class="mb-2">
         <div class="text-[var(--c-grey)]">addr 0x${addr.toString(16)}</div>
         <div>in: ${fmtList(input, consumed)}</div>

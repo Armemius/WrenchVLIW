@@ -18,11 +18,10 @@ module Wrench.Translator.Types (
     DerefMnemonic (..),
     deref',
     Ref (..),
-    derefSection
-    ) where
+    derefSection,
+) where
 
 import Data.Aeson (ToJSON)
-
 import Relude
 import Wrench.Machine.Types
 import Prelude qualified
@@ -114,7 +113,7 @@ data CodeToken isa l
         { ctMnemonic :: isa
         , ctLine :: Maybe Int
         }
-    deriving (Show, Generic)
+    deriving (Generic, Show)
 
 instance (ByteSize isa) => ByteSize (CodeToken isa l) where
     byteSize Mnemonic{ctMnemonic} = byteSize ctMnemonic
@@ -124,7 +123,7 @@ data SourceInfo = SourceInfo
     { siLine :: !Int
     , siText :: !Text
     }
-    deriving (Show, Generic, ToJSON)
+    deriving (Generic, Show, ToJSON)
 
 data Ref w
     = Ref (w -> w) String

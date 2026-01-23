@@ -4,8 +4,8 @@ module Wrench.Translator.Parser.CodeSection (
 
 import Relude
 import Text.Megaparsec (choice, getSourcePos, sourceLine)
-import Text.Megaparsec.Pos (unPos)
 import Text.Megaparsec.Char (hspace1, string)
+import Text.Megaparsec.Pos (unPos)
 import Wrench.Translator.Parser.Misc
 import Wrench.Translator.Parser.Types
 import Wrench.Translator.Types

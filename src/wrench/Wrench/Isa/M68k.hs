@@ -428,9 +428,9 @@ instance (MachineWord w) => StateInterspector (MachineState (IoMem (Isa w w) w) 
                     , ("C", toEnum @w (if cFlag then 1 else 0))
                     ]
             regs =
-                fromList $
-                    map (\(k, v) -> (T.pack $ show k, v)) (toPairs dataRegs)
-                        <> map (\(k, v) -> (T.pack $ show k, v)) (toPairs addrRegs)
+                fromList
+                    $ map (\(k, v) -> (T.pack $ show k, v)) (toPairs dataRegs)
+                    <> map (\(k, v) -> (T.pack $ show k, v)) (toPairs addrRegs)
          in regs <> flags
 
 indirectAddr f r index = do
